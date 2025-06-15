@@ -1,0 +1,1462 @@
+---
+title: "AM PG with asymmetry"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+# Settings
+
+## Data import and clear environment
+
+Import of the raw dataset "data.xlsx".
+
+```{r}
+rm(list = ls())
+#dt = readxl::read_xlsx("C://data.xlsx")
+```
+
+
+## Packages
+
+Packages used in this code.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(stargazer)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(FactoMineR)
+library(factoextra)
+library(dunn.test)
+library(sandwich)
+library(lmtest)
+library(Kendall)
+library(pwr)
+```
+
+
+# Database reworks
+
+## Exclusion
+
+Data excluded from the analysis. The equal treatment is the replication from the original paper. The session mfzczcqd has been removed because one player left during the session but we finished the session to be able to pay the other players.
+
+```{r}
+
+DATAf <- dt %>% filter(!is.na(activite_A) & activite_A != "")
+DATA <- DATAf %>% filter(treatment != "equal")
+DATAeq <- DATAf %>% filter(treatment == "equal")
+DATA <- DATA %>% filter(session != "mfzczcqd") #Session excluded because of the outlier
+
+```
+
+## New variables
+
+Here, we construct additional variables derived from the original data.
+These variables may include theoretical predictions, treatment indicators, or transformation of raw variables.
+
+```{r}
+
+# Inequality level variable
+names(DATA)[names(DATA) == "treatment"] = "ineq_level"
+
+# Treatment variable
+names(DATA)[names(DATA) == "with_approbation"] = "trt"
+DATA$trt[DATA$trt == "0"] = "baseline"
+DATA$trt[DATA$trt == "1"] = "am"
+
+
+# Treatment variable by inequality level
+DATA$subtrt <- paste(DATA$ineq_level, DATA$trt, sep = "_")
+
+DATA$subtrt[DATA$subtrt == "equal_baseline"] = "eq_no_am"
+DATA$subtrt[DATA$subtrt == "equal_am"] = "eq_am"
+DATA$subtrt[DATA$subtrt == "low_baseline"] = "low_no_am"
+DATA$subtrt[DATA$subtrt == "low_am"] = "low_am"
+DATA$subtrt[DATA$subtrt == "high_baseline"] = "high_no_am"
+DATA$subtrt[DATA$subtrt == "high_am"] = "high_am"
+
+# Final group contribution variable
+DATA$final_group_contrib <- ifelse(DATA$trt == "am", 
+                                    DATA$group_total_activite_A_apres_approb, 
+                                    DATA$group_total_activite_A)
+
+# Role variable
+DATA <- DATA %>%
+  mutate(role = case_when(
+    dotation %in% c(22, 30) ~ "rich",
+    dotation %in% c(10, 18) ~ "poor",
+    dotation == 20 ~ "equal",
+    TRUE ~ NA_character_ 
+  ))
+
+# Other's dotation variable
+names(DATA)[names(DATA) == "dotation"] = "w_i"
+DATA <- DATA %>%
+  mutate(w_j = case_when(
+    w_i == 20 ~ 20,
+    w_i == 22 ~ 18,
+    w_i == 30 ~ 10,
+    w_i == 10 ~ 30,
+    w_i == 18 ~ 22,
+    TRUE ~ w_i 
+  ))
+
+# Other's contribution variable
+DATA$g_i = ifelse(DATA$trt == "am", 
+                  DATA$activite_A_apres_approb, 
+                  DATA$activite_A)
+DATA$g_j = ifelse(DATA$trt == "am", 
+                  DATA$group_total_activite_A_apres_approb-DATA$activite_A_apres_approb, 
+                  DATA$group_total_activite_A-DATA$activite_A)
+
+# Other's profit variable
+names(DATA)[names(DATA) == "payoff_ecus"] = "pi_i"
+DATA$pi_j = DATA$w_j - DATA$g_j + 0.7 * (DATA$g_i + DATA$g_j)
+
+# Group wealth
+DATA$w_g = 40
+
+# Absolute inequality variation variable
+DATA <- DATA %>%
+  mutate(var_AI = case_when(
+    role == "poor" ~ (pi_j - pi_i) - (w_j - w_i),
+    role == "rich" ~ (pi_i - pi_j) - (w_i - w_j),
+    role == "equal" ~ abs(pi_i - pi_j),
+    TRUE ~ NA_real_
+  ))
+
+DATA <- DATA %>%
+  mutate(var_RI = case_when(
+    role == "poor" ~ (pi_i / (pi_i + pi_j)) - (w_i / (w_i + w_j)),
+    role == "rich" ~ (pi_j / (pi_i + pi_j)) - (w_j / (w_i + w_j)),
+    role == "equal" ~ abs((pi_i / (pi_i + pi_j)) - (1/2)),
+    TRUE ~ NA_real_ 
+  ))
+
+
+partner_activite_A <- DATA %>%
+  select(participant, round_number, group, activite_A) %>%
+  rename(partner = participant, activite_A_partner = activite_A)
+
+DATA <- DATA %>%
+  left_join(partner_activite_A, by = c("round_number", "group")) %>%
+  filter(participant != partner) %>%
+  select(-partner)
+
+DATA <- DATA %>%
+  relocate(activite_A_partner, .after = activite_A)
+
+```
+
+# Theoretical predictions
+
+This section generates variables based on the theoretical model's predictions.
+
+```{r}
+
+# Nash equilibrium for selfish agents
+DATA <- DATA %>%
+  mutate(
+    nash_eq = case_when(
+      trt == "am" & role == "rich" ~ w_g - w_i,
+      trt == "am" & role == "poor" ~ w_i,
+      trt == "am" & role == "equal" ~ w_i,
+      trt == "baseline" ~ 0,
+      TRUE ~ NA_real_
+    )
+  )
+DATA$nash_eq_g = 2 * DATA$nash_eq
+
+
+# Efficient equilibrium
+DATA$efficient_eq = DATA$w_i
+DATA$efficient_eq_g = DATA$w_g
+```
+
+
+# Summary
+
+Provides summary statistics of the main variables across groups or treatments.
+
+```{r}
+# Number of observations
+table(DATA$trt)
+table(DATA$subtrt)
+table(DATA$ineq_level)
+table(DATA$role)
+```
+
+## Individual characteristics
+
+```{r}
+
+# Age, Gender, Brotherhood
+descriptive_stats <- DATA %>%
+  group_by(subtrt) %>%
+  summarise(
+    mean_g_i = mean(g_i, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    median_age = median(age, na.rm = TRUE),
+    percent_female = sum(gender == "Féminin") / n() * 100,
+    mean_brotherhood = mean(brotherhood, na.rm = TRUE),
+    mean_brotherh_rank = mean(brotherhood_rank, na.rm = TRUE),
+    understanding_faults = mean(understanding_faults)
+  )
+print(descriptive_stats)
+
+# Nationality
+unique_participants <- DATA %>%
+  distinct(participant, .keep_all = TRUE)
+nationality_counts <- unique_participants %>%
+  count(nationality, sort = TRUE)
+print(nationality_counts)
+
+# Marital status
+marital_counts <- unique_participants %>%
+  count(marital_status, sort = TRUE)
+print(marital_counts)
+
+# Job
+job_counts <- unique_participants %>%
+  count(job, sort = TRUE)
+print(job_counts)
+
+# Sociopro Group
+socio_counts <- unique_participants %>%
+  count(socioprofessional_group, sort = TRUE)
+print(socio_counts)
+
+# Sociopro Group
+socio_counts <- unique_participants %>%
+  count(socioprofessional_group, sort = TRUE)
+print(socio_counts)
+
+# Financial health
+fi_abs_counts <- unique_participants %>%
+  count(sante_financiere_abs, sort = TRUE)
+print(fi_abs_counts)
+fi_stat_counts <- unique_participants %>%
+  count(sante_financiere_rel_status, sort = TRUE)
+print(fi_stat_counts)
+fi_fr_counts <- unique_participants %>%
+  count(sante_financiere_rel_france, sort = TRUE)
+print(fi_fr_counts)
+fi_wrld_counts <- unique_participants %>%
+  count(sante_financiere_rel_monde, sort = TRUE)
+print(fi_wrld_counts)
+
+# Understanding faults
+under_faults_counts <- unique_participants %>%
+  count(understanding_faults, sort = TRUE)
+print(under_faults_counts)
+
+```
+
+## Decision summary statistics
+
+```{r}
+
+mean_gi_ineq_trt <- DATA %>%
+  group_by(ineq_level, trt) %>%
+  summarise(mean_gi = mean(g_i, na.rm = TRUE)) %>%
+  ungroup()
+
+# Calculate mean g_i by role, ineq_level, and trt
+mean_gi_role_ineq_trt <- DATA %>%
+  group_by(role, ineq_level, trt) %>%
+  summarise(mean_gi = mean(g_i, na.rm = TRUE)) %>%
+  ungroup()
+
+# Print the tables
+print(mean_gi_ineq_trt)
+print(mean_gi_role_ineq_trt)
+
+
+# In the replication
+mean_gi_trt <- dt %>%
+  group_by(treatment, with_approbation) %>%
+  summarise(mean_gi = mean(activite_A_apres_approb, na.rm = TRUE)) %>%
+  ungroup()
+
+print(mean_gi_trt)
+
+mean_gi_trt <- dt %>%
+  filter(dt$round_number >9) %>%
+  group_by(treatment, with_approbation) %>%
+  summarise(mean_gi = mean(activite_A_apres_approb, na.rm = TRUE)) %>%
+  ungroup()
+
+print(mean_gi_trt)
+
+# In the replication
+mean_prop_trt <- dt %>%
+  group_by(treatment, with_approbation) %>%
+  summarise(mean_prop = mean(activite_A, na.rm = TRUE)) %>%
+  ungroup()
+
+print(mean_prop_trt)
+
+mean_prop_trt <- dt %>%
+  filter(dt$round_number >9) %>%
+  group_by(treatment, with_approbation) %>%
+  summarise(mean_prop = mean(activite_A, na.rm = TRUE)) %>%
+  ungroup()
+
+print(mean_prop_trt)
+
+mean_prop_trt <- DATA %>%
+  group_by(trt, ineq_level, role) %>%
+  summarise(mean_prop = mean(activite_A, na.rm = TRUE)) %>%
+  ungroup()
+
+print(mean_prop_trt)
+
+
+
+```
+
+
+# Estimation of parameters
+
+Estimation of the alpha and beta parameters of Fehr and Schmidt 1999 based on the method of Blanco et al. 2011.
+
+```{r}
+
+## Equality threshold dictator game (ETDG)
+hist(DATA$ETDG_switch)
+## Modified Ultimatum game (MUG)
+hist(DATA$MUG_decideur_option)
+hist(DATA$MUG_receveur_option)
+## Modified Dictator game (MDG)
+hist(DATA$MDG_option)
+
+ggplot(DATA, aes(x = ETDG_switch)) +
+  geom_histogram(aes(y = ..count../sum(..count..) * 100), bins = 30) +
+  labs(title = "Percentage of Participants by ETDG Switch",
+       x = "ETDG Switch",
+       y = "Percentage (%)") +
+  theme_minimal()
+
+ggplot(DATA, aes(x = MUG_decideur_option)) +
+  geom_histogram(aes(y = ..count../sum(..count..) * 100), bins = 30) +
+  labs(title = "Percentage of Participants by MUG Decider Option",
+       x = "MUG Decider Option",
+       y = "Percentage (%)") +
+  theme_minimal()
+
+ggplot(DATA, aes(x = MUG_receveur_option)) +
+  geom_histogram(aes(y = ..count../sum(..count..) * 100), bins = 30, fill = "skyblue", color = "black") +
+  geom_text(stat = "bin", 
+            aes(y = ..count../sum(..count..) * 100, 
+                label = paste0(round(..count../sum(..count..) * 100, 1), "%")), 
+            bins = 30, 
+            vjust = -0.5, 
+            size = 3) +
+  labs(title = "Percentage of Participants by MUG Receiver Option",
+       x = "MUG Receiver Option",
+       y = "Percentage (%)") +
+  theme_minimal()
+
+DATA$beta = 1 - ((DATA$ETDG_switch-0.5-1) / 20) # -0.5 for approximation (Blanco et al. 2011) and -1 because the variable is coded from 1 to 21
+DATA$alpha = ((DATA$MUG_receveur_option-0.5)) / (2*(10-(DATA$MUG_receveur_option-0.5))) # -0.5 for approximation (Blanco et al. 2011)
+
+beta_plot <- ggplot(DATA, aes(x = beta)) +
+  geom_bar() +
+  labs(title = "Frequency of Participants by Beta values (Fehr & Scmidt advantageous inequalities)",
+       x = "Beta",
+       y = "Frequency") +
+  theme_minimal()
+
+alpha_plot <- ggplot(DATA, aes(x = alpha)) +
+  geom_bar() +
+  labs(title = "Frequency of Participants by Alpha values (Fehr & Scmidt disadvantageous inequalities)",
+       x = "Alpha",
+       y = "Frequency") +
+  theme_minimal()
+
+print(beta_plot)
+print(alpha_plot)
+```
+
+## Figure 4.......................!!!
+
+```{r}
+DATA$alpha_display <- ifelse(DATA$alpha > 4.5, 4.5, DATA$alpha)
+DATA$alpha_label <- ifelse(DATA$alpha > 4.5, ">4.5", "")
+
+ggplot(DATA, aes(x = alpha_display, y = beta)) +
+  geom_point() +  
+  geom_abline(slope = 1, intercept = 0, lty = 5, color = "coral3", size = 1.2) + 
+  geom_hline(yintercept = 1, lty = 2, color = "blue", size = 1.2)
+  labs(title = expression("Scatter Plot of " * alpha ~ "vs." ~ beta ~ "with" ~ beta == alpha ~ "Line"),
+       x = expression(alpha),
+       y = expression(beta)) +
+  theme_minimal() +
+  scale_x_continuous(breaks = c(seq(0, 4, by = 0.5), 4.5), labels = c(seq(0, 4, by = 0.5), ">4.5"))
+
+```
+
+```{r}
+DATA$alpha_display <- ifelse(DATA$alpha > 4.5, 4.5, DATA$alpha)
+DATA$alpha_label <- ifelse(DATA$alpha > 4.5, ">4.5", "")
+
+participant_counts <- DATA %>%
+  group_by(alpha_display, beta) %>%
+  summarise(unique_participants = n_distinct(participant), .groups = 'drop') 
+
+DATA <- merge(DATA, participant_counts, by = c("alpha_display", "beta"), all.x = TRUE)
+
+ggplot(DATA, aes(x = alpha_display, y = beta, size = unique_participants)) +
+  geom_point(alpha = 0.6) +  
+  geom_abline(slope = 1, intercept = 0, lty = 5, color = "coral3", size = 1.2) +  
+  geom_hline(yintercept = 1, lty = 2, color = "blue", size = 1.2) +
+  labs(title = expression("Scatter Plot of " * alpha ~ "vs." ~ beta ~ "with" ~ beta == alpha ~ "Line"),
+       x = expression(alpha),
+       y = expression(beta),
+       size = "Unique\nParticipants") + 
+  theme_minimal() +
+  scale_x_continuous(breaks = c(seq(0, 4, by = 0.5), 4.5), labels = c(seq(0, 4, by = 0.5), ">4.5")) + 
+  guides(size = guide_legend(override.aes = list(alpha = 1)))
+```
+
+
+## Append A.3..................!!!
+
+```{r}
+DATA$alpha_interval <- cut(DATA$alpha,
+                           breaks = c(-Inf, 0.4, 0.92, 4.5, Inf),
+                           labels = c("< 0.4", ">= 0.4 and < 0.92", ">= 0.92 and < 4.5", ">= 4.5"),
+                           right = FALSE)
+
+alpha_percentages <- DATA %>%
+group_by(alpha_interval) %>%
+summarise(Count = n(),
+Percentage = (n() / nrow(DATA)) * 100) %>%
+ungroup() #
+
+DATA$beta_interval <- cut(DATA$beta,
+                          breaks = c(-Inf, 0.235, 0.5, Inf),
+                          labels = c("< 0.235", ">= 0.235 and < 0.5", ">= 0.5"),
+                          right = FALSE)
+
+beta_percentages <- DATA %>%
+group_by(beta_interval) %>%
+summarise(Count = n(),
+Percentage = (n() / nrow(DATA)) * 100) %>%
+ungroup()
+
+print(alpha_percentages)
+print(beta_percentages)
+
+data <- data.frame(
+  Interval = c("alpha < 0.4", "0.4 <= alpha < 0.92", "0.92 <= alpha < 4.5", "4.5 <= alpha",
+               "beta < 0.235", "0.235 <= beta < 0.5", "0.5 <= beta"),
+  F_S = c(30, 30, 30, 10, 30, 30, 40),
+  Blanco_et_al = c(31, 33, 23, 13, 29, 15, 56),
+  Our_Data = c(21, 20, 29, 31, 21, 28, 51)
+)
+
+alpha_data <- data[1:4, ]
+beta_data <- data[5:7, ]
+
+chisq_test_alpha <- chisq.test(rbind(alpha_data$F_S, alpha_data$Blanco_et_al, alpha_data$Our_Data))
+print("Chi-square test for Alpha Distribution:")
+print(chisq_test_alpha)
+
+chisq_test_beta <- chisq.test(rbind(beta_data$F_S, beta_data$Blanco_et_al, beta_data$Our_Data))
+print("Chi-square test for Beta Distribution:")
+print(chisq_test_beta)
+
+chisq_test_alpha_blanco <- chisq.test(rbind(alpha_data$Our_Data, alpha_data$Blanco_et_al))
+print("Chi-square test for Alpha Distribution (Our Data vs Blanco et al.):")
+print(chisq_test_alpha_blanco)
+
+chisq_test_alpha_fs <- chisq.test(rbind(alpha_data$Our_Data, alpha_data$F_S))
+print("Chi-square test for Alpha Distribution (Our Data vs F&S):")
+print(chisq_test_alpha_fs)
+
+chisq_test_beta_blanco <- chisq.test(rbind(beta_data$Our_Data, beta_data$Blanco_et_al))
+print("Chi-square test for Beta Distribution (Our Data vs Blanco et al.):")
+print(chisq_test_beta_blanco)
+
+chisq_test_beta_fs <- chisq.test(rbind(beta_data$Our_Data, beta_data$F_S))
+print("Chi-square test for Beta Distribution (Our Data vs F&S):")
+print(chisq_test_beta_fs)
+
+```
+
+# Theory testing
+
+## Prop 1: Lowest contributor always approves
+
+```{r}
+DATA_am <- filter(DATA, DATA$trt=="am")
+
+DATA_am$prop1 <- ifelse(DATA_am$activite_A < DATA_am$activite_A_partner, 1, 0)
+DATA_am$irrational_not_approving <- ifelse(DATA_am$prop1 == 1 & DATA_am$approbation == 0, 1, 0)
+
+DATA_am_prop1 <- filter(DATA_am, prop1 == 1)
+
+count_approbation_1 <- sum(DATA_am_prop1$approbation == 1)
+
+percentage <- (count_approbation_1 / nrow(DATA_am_prop1)) * 100
+
+print(paste("Percentage of players with prop1 == 1 and approbation == 1: ", percentage, "%"))
+
+```
+
+
+## Prop 2: Highest contributor always disapproves
+
+```{r}
+DATA_am$prop2 <- ifelse(DATA_am$activite_A > DATA_am$activite_A_partner,1,0)
+DATA_am$irrational_not_disapproving <- ifelse(DATA_am$prop2 == 1 & DATA_am$approbation == 1, 1, 0)
+
+DATA_am_prop2 <- filter(DATA_am, prop2 == 1)
+
+count_approbation_2 <- sum(DATA_am_prop2$approbation == 0)
+
+percentage <- (count_approbation_2 / nrow(DATA_am_prop2)) * 100
+
+print(paste("Percentage of players with prop2 == 1 and approbation == 0: ", percentage, "%"))
+```
+
+### Who propose the most?
+
+```{r}
+DATA_am$prop_less <- ifelse(DATA_am$activite_A < DATA_am$activite_A_partner,1,0)
+DATA_am$prop_more <- ifelse(DATA_am$activite_A > DATA_am$activite_A_partner,1,0)
+DATA_am$prop_equal <- ifelse(DATA_am$activite_A == DATA_am$activite_A_partner,1,0)
+
+count_rich1 <- DATA_am %>%
+  filter(role == "rich", prop_less == 1) %>%
+  nrow()
+
+count_poor1 <- DATA_am %>%
+  filter(role == "poor", prop_less == 1) %>%
+  nrow()
+
+count_rich2 <- DATA_am %>%
+  filter(role == "rich", prop_more == 1) %>%
+  nrow()
+
+count_poor2 <- DATA_am %>%
+  filter(role == "poor", prop_more == 1) %>%
+  nrow()
+
+count_rich3 <- DATA_am %>%
+  filter(role == "rich", prop_equal == 1) %>%
+  nrow()
+
+count_poor3 <- DATA_am %>%
+  filter(role == "poor", prop_equal == 1) %>%
+  nrow()
+
+print(paste("Count for rich and prop_equal == 1:", count_rich3))
+print(paste("Count for poor and prop_equal == 1:", count_poor3))
+print(paste("Count for rich and prop_more == 1:", count_rich2))
+print(paste("Count for poor and prop_more == 1:", count_poor2))
+print(paste("Count for rich and prop_less == 1:", count_rich1))
+print(paste("Count for poor and prop_less == 1:", count_poor1))
+```
+
+
+### Figure 5.....................!!!
+
+```{r}
+DATA_irrat_dis <- DATA_am %>%
+  group_by(participant) %>%
+  summarise(
+    irrational_not_disapproving = sum(irrational_not_disapproving),
+    role = first(role),
+    ineq_level = first(ineq_level)
+  )
+
+ggplot(DATA_irrat_dis, aes(x = reorder(participant, -irrational_not_disapproving), y = irrational_not_disapproving, fill = role)) +
+  geom_bar(stat = "identity") +
+  labs(x = NULL, y = "Count of irrational not-disapproving") +
+  theme(axis.text.x = element_blank(),  
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),  
+        panel.background = element_blank()) +  
+  ggtitle("Counts of Irrational Not-Disapproving by Participant") +
+  scale_fill_manual(values = c("royalblue", "limegreen"))  
+
+
+
+```
+
+
+```{r}
+total_count <- DATA_irrat_dis %>%
+  group_by(participant) %>%
+  summarise(total_irrational = sum(irrational_not_disapproving))
+
+sum(total_count$total_irrational)
+
+
+percentage_players_0 <- sum(total_count$total_irrational == 0) / n_distinct(total_count$participant) * 100
+percentage_players_0_to_3 <- sum(total_count$total_irrational > 0 & total_count$total_irrational <= 3) / n_distinct(total_count$participant) * 100
+percentage_players_over_3 <- sum(total_count$total_irrational > 3) / n_distinct(total_count$participant) * 100
+
+share_rich_poor_players_0 <- DATA_irrat_dis %>%
+  filter(irrational_not_disapproving == 0) %>%
+  group_by(role) %>%
+  summarise(count = n()) %>%
+  mutate(share = count / sum(count) * 100)
+
+share_rich_poor_players_0_to_3 <- DATA_irrat_dis %>%
+  filter(irrational_not_disapproving > 0 & irrational_not_disapproving <= 3) %>%
+  group_by(role) %>%
+  summarise(count = n()) %>%
+  mutate(share = count / sum(count) * 100)
+
+share_rich_poor_players_over_3 <- DATA_irrat_dis %>%
+  filter(irrational_not_disapproving > 3) %>%
+  group_by(role) %>%
+  summarise(count = n()) %>%
+  mutate(share = count / sum(count) * 100)
+
+cat("Percentage of players with 0:", percentage_players_0, "%\n")
+cat("Percentage of players between 0 and 3:", percentage_players_0_to_3, "%\n")
+cat("Percentage of players over 3:", percentage_players_over_3, "%\n\n")
+
+cat("Share of rich and poor players with 0:\n")
+print(share_rich_poor_players_0)
+
+cat("\nShare of rich and poor players between 0 and 3:\n")
+print(share_rich_poor_players_0_to_3)
+
+cat("\nShare of rich and poor players over 3:\n")
+print(share_rich_poor_players_over_3)
+
+share_rich_poor_players_over_9 <- DATA_irrat_dis %>%
+  filter(irrational_not_disapproving > 9) %>%
+  group_by(role) %>%
+  summarise(count = n()) %>%
+  mutate(share = count / sum(count) * 100)
+
+print(share_rich_poor_players_over_9)
+
+```
+
+### Per role
+
+```{r}
+DATA_am$diff_of_contrib <- DATA_am$activite_A - DATA_am$activite_A_partner
+```
+
+
+```{r}
+DATA_am_prop2_poor <- filter(DATA_am_prop2, role == "poor")
+
+count_approbation_2_poor <- sum(DATA_am_prop2_poor$approbation == 0)
+
+percentage <- (count_approbation_2_poor / nrow(DATA_am_prop2_poor)) * 100
+
+print(paste("Percentage of \"poor\" players with prop2 == 1 and approbation == 0: ", percentage, "%"))
+```
+
+```{r}
+DATA_am_prop2_rich <- filter(DATA_am_prop2, role == "rich")
+
+count_approbation_2_rich <- sum(DATA_am_prop2_rich$approbation == 0)
+
+percentage <- (count_approbation_2_rich / nrow(DATA_am_prop2_rich)) * 100
+
+print(paste("Percentage of \"rich\" players with prop2 == 1 and approbation == 0: ", percentage, "%"))
+```
+
+#### Table 2.....................!!!
+
+```{r}
+#Accounting for overrepresentation
+DATA_am_cont_more <- DATA_am %>% filter(diff_of_contrib > 0)
+
+model1 <- glm(irrational_not_disapproving ~ role + round_number, data = DATA_am_cont_more, family = binomial)
+
+model2 <- glm(irrational_not_disapproving ~ role + diff_of_contrib + round_number, data = DATA_am_cont_more, family = binomial)
+
+model3 <- glm(irrational_not_disapproving ~ role + diff_of_contrib + alpha + role*beta + round_number + understanding_faults, data = DATA_am_cont_more, family = binomial)
+
+vcov1 <- vcovCL(model1, cluster = ~ participant, data = DATA_am_cont_more)
+vcov2 <- vcovCL(model2, cluster = ~ participant, data = DATA_am_cont_more)
+vcov3 <- vcovCL(model3, cluster = ~ participant, data = DATA_am_cont_more)
+
+coeftest(model1, vcov1)
+coeftest(model2, vcov2)
+coeftest(model3, vcov3)
+
+cat("Model 1:\n")
+cat("Log Likelihood:", logLik(model1), "\n")
+cat("Number of Observations:", length(model1$fitted.values), "\n")
+cat("AIC:", AIC(model1), "\n\n")
+
+cat("Model 2:\n")
+cat("Log Likelihood:", logLik(model2), "\n")
+cat("Number of Observations:", length(model2$fitted.values), "\n")
+cat("AIC:", AIC(model2), "\n\n")
+
+cat("Model 3:\n")
+cat("Log Likelihood:", logLik(model3), "\n")
+cat("Number of Observations:", length(model3$fitted.values), "\n")
+cat("AIC:", AIC(model3), "\n\n")
+```
+
+
+## Prop 1: Symmetric survive
+
+```{r}
+DATA_am$symmetric_contrib <- ifelse(DATA_am$activite_A == DATA_am$activite_A_partner, 1, 0)
+nrow(DATA_am)
+sum(DATA_am$symmetric_contrib)
+
+sum(DATA_am$symmetric_contrib)/nrow(DATA_am)*100
+
+# Filter the dataset for cases where symmetric_contrib == 1
+filtered_data <- DATA_am[DATA_am$symmetric_contrib == 1, ]
+
+# Calculate the total number of cases where approbation == 0 and symmetric_contrib == 1
+total_cases <- sum(filtered_data$approbation == 0)
+
+# Calculate the share of these cases where role == "poor"
+share_poor <- sum(filtered_data$approbation == 0 & filtered_data$role == "poor") / total_cases * 100
+
+# Calculate the share of these cases where role == "rich"
+share_rich <- sum(filtered_data$approbation == 0 & filtered_data$role == "rich") / total_cases * 100
+
+# Print the results
+cat("Total cases where approbation == 0 and symmetric_contrib == 1:", total_cases, "\n")
+cat("Share of these cases where role == poor:", share_poor, "%\n")
+cat("Share of these cases where role == rich:", share_rich, "%\n")
+
+```
+
+# Figures
+
+## Effect of the AM
+
+### Figure 1.......................!!!
+
+```{r}
+# Assuming DATA is your original dataset
+DATA$trt_role = with(DATA, paste(trt, ineq_level, sep = "_"))
+
+# Aggregate mean contributions by round_number and trt_role
+DF = aggregate(final_group_contrib ~ round_number + trt_role, data = DATA, FUN = mean)
+colnames(DF) = c("round_number", "trt_role", "mean_contrib")
+
+# Set plot limits
+x_range <- range(DF$round_number)
+y_range <- range(DF$mean_contrib)
+
+# Plotting
+plot(y = DF$mean_contrib[DF$trt_role == "am_low"], x = DF$round_number[DF$trt_role == "am_low"],
+     type = "l", col = "firebrick1", lwd = 2,
+     xlim = x_range, ylim = y_range,
+     main = "Figure 1: Mean Group Contribution Over Time by Treatment and Inequality Level",
+     xlab = "Time Period (t)", ylab = "Mean Contribution (G)",
+     cex.axis = 1, cex.lab = 1, cex.main = 1, lty ="dashed", bty="L")
+
+points(y = DF$mean_contrib[DF$trt_role == "am_high"], x = DF$round_number[DF$trt_role == "am_high"],
+       col = "firebrick1", type = "l", lwd = 2)
+
+points(y = DF$mean_contrib[DF$trt_role == "baseline_low"], x = DF$round_number[DF$trt_role == "baseline_low"],
+       col = "orange", type = "l", lwd = 2, lty ="dashed")
+
+points(y = DF$mean_contrib[DF$trt_role == "baseline_high"], x = DF$round_number[DF$trt_role == "baseline_high"],
+       col = "orange", type = "l", lwd = 2)
+
+# Add a legend
+legend(14, 11, legend = c("MAM and Low", "MAM and High", "Baseline and Low", "Baseline and High"), 
+       lty = c("dashed","solid","dashed","solid"), col = c("firebrick1", "firebrick1", "orange", "orange"), bty = "n", cex = 0.8)
+```
+
+```{r}
+# Wilcoxon test for Low inequality: MAM vs. Baseline
+wilcox_test_low <- wilcox.test(
+  DATA$g_i[DATA$trt == "am" & DATA$ineq_level == "low"],
+  DATA$g_i[DATA$trt == "baseline" & DATA$ineq_level == "low"],
+  paired = FALSE # Assuming independent samples
+)
+
+# Wilcoxon test for High inequality: MAM vs. Baseline
+wilcox_test_high <- wilcox.test(
+  DATA$g_i[DATA$trt == "am" & DATA$ineq_level == "high"],
+  DATA$g_i[DATA$trt == "baseline" & DATA$ineq_level == "high"],
+  paired = FALSE # Assuming independent samples
+)
+
+# Printing the results
+cat("Wilcoxon test for Low inequality (MAM vs. Baseline):\n")
+print(wilcox_test_low)
+cat("\nWilcoxon test for High inequality (MAM vs. Baseline):\n")
+print(wilcox_test_high)
+
+```
+```{r}
+# Filter the data for "baseline" treatment
+baseline_data <- DATA[DATA$trt == "baseline",]
+
+# Perform the Mann-Kendall trend test for "baseline"
+mk_test_baseline <- MannKendall(baseline_data$g_i)
+
+# Print the result for "baseline"
+cat("Mann-Kendall trend test for 'baseline':\n")
+print(mk_test_baseline)
+
+# Filter the data for "am" treatment
+am_data <- DATA[DATA$trt == "am",]
+
+# Perform the Mann-Kendall trend test for "am"
+mk_test_am <- MannKendall(am_data$g_i)
+
+# Print the result for "am"
+cat("\nMann-Kendall trend test for 'am':\n")
+print(mk_test_am)
+
+```
+
+### Figure 2.......................!!!
+
+```{r}
+# Assuming DATA is your original dataset
+DATA$trt_role = with(DATA, paste(trt, ineq_level, sep = "_"))
+
+# Aggregate mean contributions by round_number and trt_role
+DF = aggregate(g_i ~ round_number + trt_role, data = DATA, FUN = mean)
+colnames(DF) = c("round_number", "trt_role", "mean_contrib")
+
+# Set plot limits
+x_range <- range(DF$round_number)
+y_range <- range(DF$mean_contrib)
+
+# Plotting
+plot(y = DF$mean_contrib[DF$trt_role == "am_low"], x = DF$round_number[DF$trt_role == "am_low"],
+     type = "l", col = "firebrick1", lwd = 2,
+     xlim = x_range, ylim = c(2, 11),
+     main = "Figure 2: Mean Individual Contribution Over Time by Treatment and Inequality Level",
+     xlab = "Time Period", ylab = "Mean Contribution",
+     cex.axis = 1, cex.lab = 1, cex.main = 1, lty ="dashed", bty="L")
+
+points(y = DF$mean_contrib[DF$trt_role == "am_high"], x = DF$round_number[DF$trt_role == "am_high"],
+       col = "firebrick1", type = "l", lwd = 2)
+
+points(y = DF$mean_contrib[DF$trt_role == "baseline_low"], x = DF$round_number[DF$trt_role == "baseline_low"],
+       col = "orange", type = "l", lwd = 2, lty ="dashed")
+
+points(y = DF$mean_contrib[DF$trt_role == "baseline_high"], x = DF$round_number[DF$trt_role == "baseline_high"],
+       col = "orange", type = "l", lwd = 2)
+
+# Add a legend
+legend(14, 11, legend = c("MAM and Low", "MAM and High", "Baseline and Low", "Baseline and High"), 
+       lty = c("dashed","solid","dashed","solid"), col = c("firebrick1", "firebrick1", "orange", "orange"), bty = "n", cex = 0.8)
+
+
+# Assuming DATA is your original dataset
+DATA$trt_role = with(DATA, paste(trt, ineq_level, sep = "_"))
+
+# Aggregate mean contributions by round_number and trt_role
+DF = aggregate(activite_A ~ round_number + trt_role, data = DATA, FUN = mean)
+colnames(DF) = c("round_number", "trt_role", "mean_prop")
+
+# Set plot limits
+x_range <- range(DF$round_number)
+y_range <- range(DF$mean_prop)
+
+# Plotting
+plot(y = DF$mean_prop[DF$trt_role == "am_low"], x = DF$round_number[DF$trt_role == "am_low"],
+     type = "l", col = "firebrick1", lwd = 2,
+     xlim = x_range, ylim = c(2, 11),
+     main = "Figure 2: Mean Individual Proposition Over Time by Treatment and Inequality Level",
+     xlab = "Time Period", ylab = "Mean Proposition",
+     cex.axis = 1, cex.lab = 1, cex.main = 1, lty ="dashed", bty="L")
+
+points(y = DF$mean_prop[DF$trt_role == "am_high"], x = DF$round_number[DF$trt_role == "am_high"],
+       col = "firebrick1", type = "l", lwd = 2)
+
+points(y = DF$mean_prop[DF$trt_role == "baseline_low"], x = DF$round_number[DF$trt_role == "baseline_low"],
+       col = "orange", type = "l", lwd = 2, lty ="dashed")
+
+points(y = DF$mean_prop[DF$trt_role == "baseline_high"], x = DF$round_number[DF$trt_role == "baseline_high"],
+       col = "orange", type = "l", lwd = 2)
+
+# Add a legend
+legend(14, 7, legend = c("MAM and Low", "MAM and High", "Baseline and Low", "Baseline and High"), 
+       lty = c("dashed","solid","dashed","solid"), col = c("firebrick1", "firebrick1", "orange", "orange"), bty = "n", cex = 0.8)
+
+```
+
+
+```{r}
+DATA$trt_binary = ifelse(DATA$trt == "am", 1, 0)
+DATA$trt_role = with(DATA, paste(trt_binary, role, sep = "_"))
+
+wilcox.test(g_i ~ ineq_level, data = DATA[DATA$trt_binary == 1, ])
+wilcox.test(g_i ~ ineq_level, data = DATA[DATA$trt_binary == 0, ])
+
+wilcox.test(activite_A ~ ineq_level, data = DATA[DATA$trt_binary == 1, ])
+wilcox.test(activite_A ~ ineq_level, data = DATA[DATA$trt_binary == 0, ])
+
+wilcox.test(activite_A ~ trt_binary, data = DATA[DATA$ineq_level== "low", ])
+wilcox.test(activite_A ~ trt_binary, data = DATA[DATA$ineq_level == "high", ])
+```
+
+### Figure 3.......................!!!
+
+```{r}
+# Assuming DATA is your original dataset
+DATA$trt_binary = ifelse(DATA$trt == "am", 1, 0)
+DATA$trt_role = with(DATA, paste(trt_binary, role, sep = "_"))
+
+# Aggregate mean Propositions by round_number and trt_role
+DF = aggregate(activite_A ~ round_number + trt_role, data = DATA, FUN = mean)
+colnames(DF) = c("round_number", "trt_role", "mean_prop")
+
+# Set plot limits
+x_range <- range(DF$round_number)
+y_range <- range(DF$mean_prop)
+
+# Plotting
+plot(y = DF$mean_prop[DF$trt_role == "1_rich"], x = DF$round_number[DF$trt_role == "1_rich"],
+     type = "l", col = "firebrick1", lwd = 2,
+     xlim = x_range, ylim = y_range,
+     main = "Figure 1: Mean Proposition* Over Time by Treatment and Role",
+     xlab = "Time Period", ylab = "Mean Proposition*",
+     cex.axis = 1, cex.lab = 1, cex.main = 1, bty="L")
+
+points(y = DF$mean_prop[DF$trt_role == "1_poor"], x = DF$round_number[DF$trt_role == "1_poor"],
+       col = "firebrick1", type = "l", lwd = 2, lty = "dashed")
+
+points(y = DF$mean_prop[DF$trt_role == "0_rich"], x = DF$round_number[DF$trt_role == "0_rich"],
+       col = "orange", type = "l", lwd = 2)
+
+points(y = DF$mean_prop[DF$trt_role == "0_poor"], x = DF$round_number[DF$trt_role == "0_poor"],
+       col = "orange", type = "l", lwd = 2, lty = "dashed")
+
+# Add a legend
+legend(15, 7, legend = c("MAM-Rich", "MAM-Poor", "Baseline-Rich", "Baseline-Poor"), 
+       lty = c("solid", "dashed", "solid", "dashed"), col = c("firebrick1", "firebrick1", "orange", "orange"), bty = "n", cex = 0.8)
+
+```
+
+
+```{r}
+wilcox.test(activite_A ~ trt_binary, data = DATA[DATA$role == "rich", ])
+wilcox.test(activite_A ~ trt_binary, data = DATA[DATA$role == "poor", ])
+wilcox.test(activite_A ~ role, data = DATA[DATA$trt_binary == 1, ])
+wilcox.test(activite_A ~ role, data = DATA[DATA$trt_binary == 0, ])
+
+DATA$diff_prop_role <- ifelse(DATA$role == "rich", DATA$activite_A - DATA$activite_A_partner, DATA$activite_A_partner - DATA$activite_A)
+wilcox.test(diff_prop_role ~ trt_binary, data = DATA)
+
+
+```
+
+# Main Analysis
+
+## Impact of inequalities on the effectiveness of the AM
+
+
+```{r}
+box_plot <- ggplot(DATA[DATA$trt == "am", ], aes(x = ineq_level, y = final_group_contrib)) +
+  geom_boxplot() +
+  labs(title = "Distribution of final_group_contrib by ineq_level (trt = am)",
+       x = "Inequality Level",
+       y = "Final Group Contribution") +
+  theme_minimal()
+print(box_plot)
+
+am_data <- DATA[DATA$trt == "am", ]
+contrib_time_period <- aggregate(final_group_contrib ~ round_number + subtrt, data = am_data, FUN = mean)
+print(contrib_time_period)
+plot <- ggplot(contrib_time_period, aes(x = round_number, y = final_group_contrib, color = subtrt)) +
+  geom_line() +
+  labs(title = "Mean Contribution Over Time by Treatment",
+       x = "Time Period",
+       y = "Mean Contribution") +
+  theme_minimal()
+print(plot)
+
+kruskal.test(am_data$final_group_contrib ~ am_data$ineq_level)
+
+```
+
+
+## Effect of AM on inequalities
+
+### Absolute inequality
+
+```{r}
+mean_AI_per_subtrt <- DATA %>%
+  group_by(subtrt) %>%
+  summarise(mean_AI = mean(var_AI, na.rm = TRUE))
+print(mean_AI_per_subtrt)
+
+box_plot <- ggplot(DATA, aes(x = subtrt, y = var_AI)) +
+  geom_boxplot() +
+  labs(title = "Variation of Absolute inequality by Sub treatment",
+       x = "Subtrt",
+       y = "var AI") +
+  theme_minimal()
+print(box_plot)
+
+subtrt_values <- c("eq_am", "eq_no_am", "low_am", "low_no_am", "high_am", "high_no_am")
+for (value in subtrt_values) {
+  subset_data <- DATA %>% filter(subtrt == value)
+  
+  if (nrow(subset_data) > 1) {
+    wilcox_result <- wilcox.test(subset_data$var_AI, mu = 0)
+    
+    print(paste("Wilcoxon Rank Sum Test for subtrt =", value))
+    print(wilcox_result)
+  } else {
+    print(paste("Insufficient data for subtrt =", value))
+  }
+}
+
+```
+
+### Relative inequality
+
+```{r}
+mean_RI_per_subtrt <- DATA %>%
+  group_by(subtrt) %>%
+  summarise(mean_RI = mean(var_RI, na.rm = TRUE))
+print(mean_RI_per_subtrt)
+
+box_plot <- ggplot(DATA, aes(x = subtrt, y = var_RI)) +
+  geom_boxplot() +
+  labs(title = "Variation of share of the wealth of the poorest player",
+       x = "Subtrt",
+       y = "var RI") +
+  theme_minimal()
+print(box_plot)
+
+
+subtrt_values <- c("eq_am", "eq_no_am", "low_am", "low_no_am", "high_am", "high_no_am")
+for (value in subtrt_values) {
+  subset_data <- DATA %>% filter(subtrt == value)
+  
+  if (nrow(subset_data) > 1) {
+    wilcox_result <- wilcox.test(subset_data$var_RI, mu = 0)
+    
+    print(paste("Wilcoxon Rank Sum Test for subtrt =", value))
+    print(wilcox_result)
+  } else {
+    print(paste("Insufficient data for subtrt =", value))
+  }
+}
+
+```
+
+## Effect of Inequality aversion
+
+### Append A.4.1...............!!!
+
+```{r}
+DATA_ind <- DATA %>%
+  group_by(participant) %>%
+  summarise(
+    mean_g_i = mean(g_i),
+    mean_prop = mean(activite_A),
+    mean_app = mean(approbation),
+    role = first(role),
+    beta = mean(beta),
+    alpha = first(alpha),
+    w_i = first(w_i),
+    ineq_level = first(ineq_level),
+    trt = first(trt),
+    NLE_score = mean(NLE_score),
+    gender = first(gender)
+  )
+
+DATA_rich <- DATA_ind %>%
+  filter(DATA_ind$role == "rich")
+
+reg_model_beta_rich <- lm(mean_prop ~ alpha + beta, data = DATA_rich)
+reg_model_beta_rich2 <- lm(mean_prop ~ alpha + beta + ineq_level, data = DATA_rich)
+reg_model_beta_rich3 <- lm(mean_prop ~ alpha + beta + ineq_level + trt, data = DATA_rich)
+reg_model_beta_rich4 <- lm(mean_prop ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_rich)
+
+model_list_beta_rich <- list(reg_model_beta_rich, reg_model_beta_rich2, reg_model_beta_rich3, reg_model_beta_rich4)
+
+stargazer(model_list_beta_rich, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+reg_model_beta_rich <- lm(mean_g_i ~ alpha + beta, data = DATA_rich)
+reg_model_beta_rich2 <- lm(mean_g_i ~ alpha + beta + ineq_level, data = DATA_rich)
+reg_model_beta_rich3 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt, data = DATA_rich)
+reg_model_beta_rich4 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_rich)
+
+model_list_beta_rich <- list(reg_model_beta_rich, reg_model_beta_rich2, reg_model_beta_rich3, reg_model_beta_rich4)
+
+stargazer(model_list_beta_rich, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+
+
+
+```
+
+### Append A.4.2...............!!!
+
+
+```{r}
+
+# Create dummies
+DATA_ind2 <- DATA_ind %>%
+  mutate(
+    dummy1 = ifelse(beta < 1, 1, 0),
+    dummy2 = ifelse(beta <= alpha, 1, 0)
+  )
+
+# Filter dataset for participants where both dummies are 1
+filtered_DATA_ind <- DATA_ind2 %>%
+  filter(dummy1 == 1 & dummy2 == 1)
+
+DATA_rich <- filtered_DATA_ind %>%
+  filter(filtered_DATA_ind$role == "rich")
+
+reg_model_beta_rich <- lm(mean_prop ~ alpha + beta, data = DATA_rich)
+reg_model_beta_rich2 <- lm(mean_prop ~ alpha + beta + ineq_level, data = DATA_rich)
+reg_model_beta_rich3 <- lm(mean_prop ~ alpha + beta + ineq_level + trt, data = DATA_rich)
+reg_model_beta_rich4 <- lm(mean_prop ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_rich)
+vif(reg_model_beta_rich4)
+
+model_list_beta_rich <- list(reg_model_beta_rich, reg_model_beta_rich2, reg_model_beta_rich3, reg_model_beta_rich4)
+
+stargazer(model_list_beta_rich, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+reg_model_beta_rich <- lm(mean_g_i ~ alpha + beta, data = DATA_rich)
+reg_model_beta_rich2 <- lm(mean_g_i ~ alpha + beta + ineq_level, data = DATA_rich)
+reg_model_beta_rich3 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt, data = DATA_rich)
+reg_model_beta_rich4 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_rich)
+
+model_list_beta_rich <- list(reg_model_beta_rich, reg_model_beta_rich2, reg_model_beta_rich3, reg_model_beta_rich4)
+
+
+stargazer(model_list_beta_rich, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+```
+
+### Append A.5.1...............!!!
+
+```{r}
+DATA_poor <- DATA %>%
+  filter(DATA$role == "poor")
+
+DATA_poor <- DATA_poor %>%
+  group_by(participant) %>%
+  summarise(
+    mean_g_i = mean(g_i),
+    mean_prop = mean(activite_A),
+    beta = mean(beta),
+    alpha = first(alpha),
+    ineq_level = first(ineq_level),
+    trt = first(trt),
+    gender = first(gender),
+    NLE_score = first(NLE_score)
+  )
+
+reg_model_alpha_poor3 <- lm(mean_prop ~ alpha + beta + ineq_level + trt, data = DATA_poor)
+reg_model_alpha_poor4 <- lm(mean_prop ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_poor)
+
+model_list_alpha_poor <- list(reg_model_alpha_poor3, reg_model_alpha_poor4)
+
+stargazer(model_list_alpha_poor, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+reg_model_alpha_poor3 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt, data = DATA_poor)
+reg_model_alpha_poor4 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_poor)
+
+model_list_alpha_poor <- list(reg_model_alpha_poor3, reg_model_alpha_poor4)
+
+stargazer(model_list_alpha_poor, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+```
+
+### Append A.5.2...............!!!
+
+```{r}
+DATA_poor <- DATA_poor %>%
+  mutate(
+    dummy1 = ifelse(beta < 1, 1, 0),
+    dummy2 = ifelse(beta <= alpha, 1, 0)
+  )
+
+filtered_DATA_poor <- DATA_poor %>%
+  filter(dummy1 == 1 & dummy2 == 1)
+
+reg_model_alpha_poor3 <- lm(mean_prop ~ alpha + beta + ineq_level + trt, data = filtered_DATA_poor)
+reg_model_alpha_poor4 <- lm(mean_prop ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = filtered_DATA_poor)
+
+model_list_alpha_poor <- list(reg_model_alpha_poor3, reg_model_alpha_poor4)
+
+stargazer(model_list_alpha_poor, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+
+reg_model_alpha_poor3 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt, data = DATA_poor)
+reg_model_alpha_poor4 <- lm(mean_g_i ~ alpha + beta + ineq_level + trt + gender + NLE_score, data = DATA_poor)
+
+model_list_alpha_poor <- list(reg_model_alpha_poor3, reg_model_alpha_poor4)
+
+stargazer(model_list_alpha_poor, type = "text",
+          star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+# Exploratory analysis
+
+## Table 3...........................!!!
+
+```{r}
+rich_players <- DATA[DATA$role == "rich",]
+rich_players <- rich_players[rich_players$trt == "baseline",]
+
+wilcox_test_overall <- wilcox.test(rich_players$activite_A, rich_players$belief_A_other, paired = TRUE)
+cat("Overall Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_overall)
+
+rich_high <- rich_players[rich_players$role == "rich" & rich_players$ineq_level == "high",]
+
+wilcox_test_high <- wilcox.test(rich_high$activite_A, rich_high$belief_A_other, paired = TRUE)
+cat("High Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_high)
+
+rich_low <- rich_players[rich_players$role == "rich" & rich_players$ineq_level == "low",]
+
+wilcox_test_low <- wilcox.test(rich_low$activite_A, rich_low$belief_A_other, paired = TRUE)
+cat("Low Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_low)
+
+
+calculate_means_sds <- function(rich_players_subset) {
+  mean_activite_A <- mean(rich_players_subset$activite_A, na.rm = TRUE)
+  sd_activite_A <- sd(rich_players_subset$activite_A, na.rm = TRUE)
+  mean_belief_A_other <- mean(rich_players_subset$belief_A_other, na.rm = TRUE)
+  sd_belief_A_other <- sd(rich_players_subset$belief_A_other, na.rm = TRUE)
+  
+  c(mean_activite_A, sd_activite_A, mean_belief_A_other, sd_belief_A_other)
+}
+
+overall_stats <- calculate_means_sds(rich_players)
+high_stats <- calculate_means_sds(rich_high)
+low_stats <- calculate_means_sds(rich_low)
+
+table_content <- rbind(
+  c("Overall", 
+    paste(round(overall_stats[1], 2), "(", round(overall_stats[2], 2), ")", sep=""),
+    paste(round(overall_stats[3], 2), "(", round(overall_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_overall$p.value, format = "e", digits = 2)),
+  c("High Inequality Level", 
+    paste(round(high_stats[1], 2), "(", round(high_stats[2], 2), ")", sep=""),
+    paste(round(high_stats[3], 2), "(", round(high_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_high$p.value, format = "e", digits = 2)),
+  c("Low Inequality Level", 
+    paste(round(low_stats[1], 2), "(", round(low_stats[2], 2), ")", sep=""),
+    paste(round(low_stats[3], 2), "(", round(low_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_low$p.value, format = "e", digits = 2))
+)
+
+table_df <- as.data.frame(table_content, stringsAsFactors = FALSE)
+colnames(table_df) <- c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value")
+
+table_df$Significance <- ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.001, "***",
+                                ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.01, "**",
+                                       ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.05, "*", "")))
+
+table_df <- table_df[, c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value", "Significance")]
+
+print(table_df)
+
+```
+
+```{r}
+poor_players <- DATA[DATA$role == "poor",]
+poor_players <- poor_players[poor_players$trt == "baseline",]
+
+wilcox_test_overall <- wilcox.test(poor_players$activite_A, poor_players$belief_A_other, paired = TRUE)
+cat("Overall Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_overall)
+
+poor_high <- poor_players[poor_players$role == "poor" & poor_players$ineq_level == "high",]
+
+wilcox_test_high <- wilcox.test(poor_high$activite_A, poor_high$belief_A_other, paired = TRUE)
+cat("High Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_high)
+
+poor_low <- poor_players[poor_players$role == "poor" & poor_players$ineq_level == "low",]
+
+wilcox_test_low <- wilcox.test(poor_low$activite_A, poor_low$belief_A_other, paired = TRUE)
+cat("Low Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_low)
+
+calculate_means_sds <- function(poor_players_subset) {
+  mean_activite_A <- mean(poor_players_subset$activite_A, na.rm = TRUE)
+  sd_activite_A <- sd(poor_players_subset$activite_A, na.rm = TRUE)
+  mean_belief_A_other <- mean(poor_players_subset$belief_A_other, na.rm = TRUE)
+  sd_belief_A_other <- sd(poor_players_subset$belief_A_other, na.rm = TRUE)
+  
+  c(mean_activite_A, sd_activite_A, mean_belief_A_other, sd_belief_A_other)
+}
+
+overall_stats <- calculate_means_sds(poor_players)
+high_stats <- calculate_means_sds(poor_high)
+low_stats <- calculate_means_sds(poor_low)
+
+table_content <- rbind(
+  c("Overall", 
+    paste(round(overall_stats[1], 2), "(", round(overall_stats[2], 2), ")", sep=""),
+    paste(round(overall_stats[3], 2), "(", round(overall_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_overall$p.value, format = "e", digits = 2)),
+  c("High Inequality Level", 
+    paste(round(high_stats[1], 2), "(", round(high_stats[2], 2), ")", sep=""),
+    paste(round(high_stats[3], 2), "(", round(high_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_high$p.value, format = "e", digits = 2)),
+  c("Low Inequality Level", 
+    paste(round(low_stats[1], 2), "(", round(low_stats[2], 2), ")", sep=""),
+    paste(round(low_stats[3], 2), "(", round(low_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_low$p.value, format = "e", digits = 2))
+)
+
+table_df <- as.data.frame(table_content, stringsAsFactors = FALSE)
+colnames(table_df) <- c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value")
+
+table_df$Significance <- ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.001, "***",
+                                ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.01, "**",
+                                       ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.05, "*", "")))
+
+table_df <- table_df[, c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value", "Significance")]
+
+print(table_df)
+
+```
+
+```{r}
+rich_players <- DATA[DATA$role == "rich",]
+rich_players <- rich_players[rich_players$trt == "am",]
+
+wilcox_test_overall <- wilcox.test(rich_players$activite_A, rich_players$belief_A_other, paired = TRUE)
+cat("Overall Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_overall)
+
+rich_high <- rich_players[rich_players$role == "rich" & rich_players$ineq_level == "high",]
+
+wilcox_test_high <- wilcox.test(rich_high$activite_A, rich_high$belief_A_other, paired = TRUE)
+cat("High Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_high)
+
+rich_low <- rich_players[rich_players$role == "rich" & rich_players$ineq_level == "low",]
+
+wilcox_test_low <- wilcox.test(rich_low$activite_A, rich_low$belief_A_other, paired = TRUE)
+cat("Low Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for rich players:\n")
+print(wilcox_test_low)
+
+calculate_means_sds <- function(rich_players_subset) {
+  mean_activite_A <- mean(rich_players_subset$activite_A, na.rm = TRUE)
+  sd_activite_A <- sd(rich_players_subset$activite_A, na.rm = TRUE)
+  mean_belief_A_other <- mean(rich_players_subset$belief_A_other, na.rm = TRUE)
+  sd_belief_A_other <- sd(rich_players_subset$belief_A_other, na.rm = TRUE)
+  
+  c(mean_activite_A, sd_activite_A, mean_belief_A_other, sd_belief_A_other)
+}
+
+overall_stats <- calculate_means_sds(rich_players)
+high_stats <- calculate_means_sds(rich_high)
+low_stats <- calculate_means_sds(rich_low)
+
+table_content <- rbind(
+  c("Overall", 
+    paste(round(overall_stats[1], 2), "(", round(overall_stats[2], 2), ")", sep=""),
+    paste(round(overall_stats[3], 2), "(", round(overall_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_overall$p.value, format = "e", digits = 2)),
+  c("High Inequality Level", 
+    paste(round(high_stats[1], 2), "(", round(high_stats[2], 2), ")", sep=""),
+    paste(round(high_stats[3], 2), "(", round(high_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_high$p.value, format = "e", digits = 2)),
+  c("Low Inequality Level", 
+    paste(round(low_stats[1], 2), "(", round(low_stats[2], 2), ")", sep=""),
+    paste(round(low_stats[3], 2), "(", round(low_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_low$p.value, format = "e", digits = 2))
+)
+
+table_df <- as.data.frame(table_content, stringsAsFactors = FALSE)
+colnames(table_df) <- c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value")
+
+table_df$Significance <- ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.001, "***",
+                                ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.01, "**",
+                                       ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.05, "*", "")))
+
+table_df <- table_df[, c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value", "Significance")]
+
+print(table_df)
+
+```
+
+```{r}
+poor_players <- DATA[DATA$role == "poor",]
+poor_players <- poor_players[poor_players$trt == "am",]
+
+wilcox_test_overall <- wilcox.test(poor_players$activite_A, poor_players$belief_A_other, paired = TRUE)
+cat("Overall Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_overall)
+
+poor_high <- poor_players[poor_players$role == "poor" & poor_players$ineq_level == "high",]
+
+wilcox_test_high <- wilcox.test(poor_high$activite_A, poor_high$belief_A_other, paired = TRUE)
+cat("High Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_high)
+
+poor_low <- poor_players[poor_players$role == "poor" & poor_players$ineq_level == "low",]
+
+wilcox_test_low <- wilcox.test(poor_low$activite_A, poor_low$belief_A_other, paired = TRUE)
+cat("Low Inequality Level Wilcoxon signed-rank test between activite_A and belief_A_other for poor players:\n")
+print(wilcox_test_low)
+
+calculate_means_sds <- function(poor_players_subset) {
+  mean_activite_A <- mean(poor_players_subset$activite_A, na.rm = TRUE)
+  sd_activite_A <- sd(poor_players_subset$activite_A, na.rm = TRUE)
+  mean_belief_A_other <- mean(poor_players_subset$belief_A_other, na.rm = TRUE)
+  sd_belief_A_other <- sd(poor_players_subset$belief_A_other, na.rm = TRUE)
+  
+  c(mean_activite_A, sd_activite_A, mean_belief_A_other, sd_belief_A_other)
+}
+
+overall_stats <- calculate_means_sds(poor_players)
+high_stats <- calculate_means_sds(poor_high)
+low_stats <- calculate_means_sds(poor_low)
+
+table_content <- rbind(
+  c("Overall", 
+    paste(round(overall_stats[1], 2), "(", round(overall_stats[2], 2), ")", sep=""),
+    paste(round(overall_stats[3], 2), "(", round(overall_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_overall$p.value, format = "e", digits = 2)),
+  c("High Inequality Level", 
+    paste(round(high_stats[1], 2), "(", round(high_stats[2], 2), ")", sep=""),
+    paste(round(high_stats[3], 2), "(", round(high_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_high$p.value, format = "e", digits = 2)),
+  c("Low Inequality Level", 
+    paste(round(low_stats[1], 2), "(", round(low_stats[2], 2), ")", sep=""),
+    paste(round(low_stats[3], 2), "(", round(low_stats[4], 2), ")", sep=""),
+    formatC(wilcox_test_low$p.value, format = "e", digits = 2))
+)
+
+table_df <- as.data.frame(table_content, stringsAsFactors = FALSE)
+colnames(table_df) <- c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value")
+
+table_df$Significance <- ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.001, "***",
+                                ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.01, "**",
+                                       ifelse(as.numeric(table_df$`Wilcoxon Test p-value`) < 0.05, "*", "")))
+
+table_df <- table_df[, c("Group Comparison", "Mean Activite_A (SD)", "Mean Belief_A_Other (SD)", "Wilcoxon Test p-value", "Significance")]
+
+print(table_df)
+
+```

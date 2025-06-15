@@ -1,0 +1,36 @@
+{{ block title }}
+    Partie 3
+{{ endblock }}
+
+{{ block content }}
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Pour cette partie, le programme informatique va former des paires, de manière aléatoire. Vous ne pouvez
+            pas identifier l'autre membre de votre paire et celui-ci ne peut pas vous identifier. <br>
+            La partie comporte 3 jeux. <br>
+            Un des 3 jeux de cette partie sera sélectionné aléatoirement par le programme
+            informatique. Votre gain à ce jeu déterminera votre gain pour la partie.
+        </p>
+        <p>
+            Les montants dans ces jeux sont expérimés en ECUs. Le taux de conversion est
+            1 ECU = {{ subsession.conversion_rate|cu }}.
+        </p>
+    </div>
+</div>
+
+    {{ next_button }}
+
+{{ endblock }}
+
+{{ block scripts }}
+
+<script src="{{static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

@@ -1,0 +1,14 @@
+ dict(
+     name="approbation",
+     display_name="Approbation mechanism",
+     app_sequence=["Welcome", "approbation_publicgoods", "targetNLE", "inequalityAversionTest", "approbation_demog",
+                   "approbation_final"],
+     num_demo_participants=2,
+     treatment="low",
+     approbation=False,
+     approbation_publicgoods_conversion=0.5,
+     targetNLE_constante=3,
+     inequalityAversionTest_conversion=0.25,
+     doc="<span class='text-info'>treatment: equal, low or high</span>"
+ ),
+

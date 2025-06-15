@@ -1,0 +1,22 @@
+{{ block title }}
+Partie 2 - Instructions
+{{ endblock }}
+
+{{ block content }}
+
+    {{ include "targetNLE/InstructionsTemplate.html" }}
+
+    {{ next_button }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{ static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function() {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}
+

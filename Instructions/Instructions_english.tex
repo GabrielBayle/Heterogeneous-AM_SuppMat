@@ -1,0 +1,161 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PACKAGES AND DOCUMENT PARAMETERS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[12pt]{article}
+\makeatletter
+\usepackage{longtable}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{pstricks}
+\usepackage{theorem}
+\usepackage[english]{babel}
+\usepackage{lscape}
+\usepackage[pdftex]{graphicx}
+\usepackage{epstopdf}
+\usepackage[round, authoryear]{natbib}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{float}
+\usepackage{longtable}
+\usepackage[vscale=0.75,hscale=0.75]{geometry}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{dcolumn}
+\usepackage{blindtext}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{subcaption} 
+\newtheorem{theorem}{Theorem}
+\newtheorem{algorithm}{Algorithm}
+\newtheorem{conclusion}{Conclusion}
+\newtheorem{condition}{Condition}
+\newtheorem{conjecture}{Conjecture}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{exercise}{Exercise}
+\newtheorem{lemma}{Lemma}
+\newtheorem{notation}{Notation}
+\newtheorem{property}{Property}
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+\newtheorem{solution}{Solution}
+\newtheorem{summary}{Summary}
+\newtheorem{axiom}{Axiom}
+\usepackage{setspace}
+\newenvironment{proof}[1][Proof]{\textbf{#1.} }{\ \rule{0.25em}{0.25em}}
+\addtolength{\hoffset}{-0.10in} \addtolength{\textwidth}{0.5in} \addtolength{\voffset}{-0.10in}
+\addtolength{\textheight}{0.5in}
+\usepackage{hyperref}
+\linespread{1.5}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PARAMETERS OF THE EXPERIMENT - Do not forget spaces after values%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\periods}{19 }
+\newcommand{\convertECU}{1 }
+\newcommand{\mpcr}{0.7 }
+\newcommand{\dotationLow}{LowDotation }
+\newcommand{\dotationHigh}{HighDotation }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CONTENT OF THE INSTRUCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+\begin{document}
+
+\title{Instructions \textcolor{red}{translated from French}}
+\maketitle
+
+\author[1,*]{Gabriel Bayle}
+\author[1]{Marc Willinger}
+
+\affil[1]{CEE-M, Univ. Montpellier, CNRS, INRAe, Institut Agro}
+\affil[*]{Corresponding author}
+
+ \section{Color coding for treatments}
+ \begin{itemize}
+     \item \textcolor{black}{\textit{Black:}} Common instructions for all treatments.
+     \item \textcolor{teal}{\textit{Teal:}} Common instructions for MAM treatments.
+     \item \textcolor{blue}{\textit{Blue:}} Instructions only for the high inequality treatments.
+     \item \textcolor{orange}{\textit{Orange:}} Instructions only for the low inequality treatments.
+     \item \textcolor{red}{\textit{Red:}} Instructions that change depending on the role.
+ \end{itemize}
+ \newpage
+
+ \section{Instructions}
+
+\subsection*{Welcome}
+
+\noindent Thank you for agreeing to participate in this experiment on decision-making. This experiment will be incentivized, and your earnings will depend on your own decisions as well as those of other participants. Your identity and choices will remain anonymous. You will enter your choices on the computer in front of you, which will also display your earnings (in points) as the experiment progresses.\\
+
+\noindent From now until the end of the experiment, please refrain from communicating. If you have any questions, raise your hand, and an experimenter will assist you privately.
+
+\subsection*{General Procedure}
+
+\noindent The following instructions will remain available throughout the experiment by clicking on the "Instructions" button.\\
+
+\noindent At the beginning of each period, you will be randomly paired with another participant. If there are 20 participants in the room, you will meet each other exactly once. Otherwise, you may be paired with the same participant more than once. Each period is played with a different partner.\\
+
+\noindent At the beginning of the game, you will be randomly assigned an endowment, which can be either \textcolor{blue}{10} \textcolor{orange}{18} tokens or \textcolor{blue}{30} \textcolor{orange}{22} tokens. If you receive \textcolor{blue}{10} \textcolor{orange}{18} tokens, your partner will receive \textcolor{blue}{30} \textcolor{orange}{22} tokens, and vice versa.\\
+
+\noindent The experiment consists of \periods periods. At the end of the experiment, one of the \periods periods will be randomly selected for payment, and your earnings (in points) from that period will be converted into real money according to a rule specified at the end of the instructions.\\
+
+\noindent After reading the instructions, you will be asked to complete a comprehension quiz. Once all participants have completed the quiz, the experiment will begin.\\
+
+\noindent The following instructions explain the structure of each period.
+
+\subsection*{Types of Investment}
+
+\noindent In each period, you and your current partner will receive an endowment of \textcolor{blue}{10} \textcolor{orange}{18} or \textcolor{blue}{30} \textcolor{orange}{22} tokens, which must be allocated between two activities: Activity A and Activity B. Activity A is a joint activity for both players, while Activity B is an individual activity. Each token must be invested in either Activity A or Activity B. The earnings from each activity and the total earnings are described below.
+
+\subsubsection*{Earnings from Investment in Activity A}
+
+\noindent Your earnings from Activity A depend on both your own investment and that of your partner. Each token invested in Activity A yields \mpcr points for you and \mpcr points for your partner. This is explained further in the "Total Earnings" section.\\
+
+\noindent \textit{\textbf{Example 1}:}
+You invest 10 tokens in Activity A. The other player invests 9 tokens. Your earnings from Activity A are (10 + 9) * 0.7 = 13.3 points.
+
+\subsubsection*{Earnings from Investment in Activity B}
+
+\noindent Your earnings from Activity B depend only on your own investment in this activity. Each token invested in Activity B yields \convertECU points. Likewise, each token your partner invests in their Activity B yields \convertECU points for them.\\
+
+\noindent \textit{\textbf{Example 2}:}
+You invest 5 tokens in Activity B. Your earnings from Activity B are 5 points.
+
+\subsubsection*{Total Earnings}
+
+\noindent Your total earnings in each period are the sum of your earnings from Activity A and Activity B.\\
+
+\noindent You do not need to perform any calculations. Your total earnings will be displayed directly in the earnings table (see \textit{Earnings Table}). This table will be accessible at any time by clicking on the "Instructions" button.
+
+\subsection*{Procedure of the Experiment}
+
+\textcolor{teal}{\noindent Each period consists of two stages: the investment decision stage and the approval stage.}
+
+\subsubsection*{\textcolor{teal}{First Stage}}
+
+\noindent In \textcolor{teal}{the first stage of} each period, you must allocate your \textcolor{red}{\dotationLow or \dotationHigh} tokens between investments in Activity A and Activity B. You are free to allocate any proportion of your tokens, including investing all tokens in Activity A or all in Activity B.\\
+
+\noindent The computer will prompt you to enter the number of tokens you want to invest in Activity A. The remainder of your \textcolor{red}{\dotationLow or \dotationHigh} tokens will automatically be allocated to Activity B. The total sum of both investments will always match your total endowment. There is no possibility to carry over tokens from one period to the next. Each new period begins with a fresh \textcolor{red}{\dotationLow or \dotationHigh} tokens to invest.\\
+
+\noindent You and your paired participant will make investment decisions simultaneously. \textcolor{teal}{Once both of you have made your investment decisions, the second stage of the period begins.}
+
+\subsubsection*{\textcolor{teal}{Second Stage}}
+
+\noindent \textcolor{teal}{In the second stage, investment decisions from both participants will be revealed, meaning you will both see each other’s investment choices. These decisions will then be subject to mutual approval. If both of you approve the investment allocations, they will be implemented as decided, and you will each receive the corresponding payoffs.}\\
+
+\noindent \textcolor{teal}{If at least one of you disapproves, an alternative allocation will be applied. Specifically, the smaller of the two proposed investment amounts in Activity A will be enforced for both participants (Example 2 below).}\\
+
+\noindent \textcolor{teal}{At the end of this stage, the computer will compute total earnings based on the final investment distribution for the current period. You will be shown your token allocations and total earnings in points, as well as your partner's results. A new period will then begin with a new randomly assigned partner. After the \periods-th period, the computer will display a summary of your earnings across all \periods periods.}
+
+
+
+\subsection*{Compensation}
+
+\noindent The exchange rate is 1 euro per \convertECU points. One of the \periods periods will be randomly selected for payment in real money.
+
+\end{document}

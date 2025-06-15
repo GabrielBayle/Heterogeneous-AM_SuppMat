@@ -1,0 +1,47 @@
+{{ block title }}
+Questionnaire de compréhension
+{{ endblock }}
+
+{{ block content }}
+
+<div class="mb-3 text-end">
+    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modal_content">
+        Instructions
+    </button>
+</div>
+
+{{ for q in understanding }}
+<div class="card bg-light mb-3">
+    <div class="card-header">
+        <strong>Question {{ forloop.counter }}</strong>
+    </div>
+    <div class="card-body">
+        <p>
+            <label for="id_understanding_{{forloop.counter}}" class="form-label">{{ q.text }}</label>
+        </p>
+        <select class="form-control form-select" name="understanding_{{forloop.counter}}"
+                id="id_understanding_{{forloop.counter}}" required>
+            <option value="">-----</option>
+            {{ for p in q.propositions }}
+            <option value="{{p}}">{{p}}</option>
+            {{ endfor }}
+        </select>
+    </div>
+</div>
+{{ endfor }}
+
+{{ next_button }}
+
+{{ include "approbation_publicgoods/InstructionsModal.html" }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

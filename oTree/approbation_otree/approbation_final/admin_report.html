@@ -1,0 +1,24 @@
+<table class="table">
+    <thead>
+    <tr>
+        <th>Poste</th>
+        <th>AMPG</th>
+        <th>NLE</th>
+        <th>IAT</th>
+        <th>Partie payée<br>(en plus de AMPG)</th>
+        <th>Paiement</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ for p in infos}}
+    <tr>
+        <td>{{ p.label }}</td>
+        <td>{{ p.part_1 }}</td>
+        <td>{{ p.part_2 }}</td>
+        <td>{{ p.part_3 }}</td>
+        <td>{{ p.paid_part }}</td>
+        <td>{{ p.payoff }}</td>
+    </tr>
+    {{ endfor }}
+    </tbody>
+</table>

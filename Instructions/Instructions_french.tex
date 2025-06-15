@@ -1,0 +1,155 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PACKAGES AND DOCUMENT PARAMETERS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[12pt]{article}
+\makeatletter
+\usepackage{longtable}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{pstricks}
+\usepackage{theorem}
+\usepackage[francais]{babel}
+\usepackage{lscape}
+\usepackage[pdftex]{graphicx}
+\usepackage{epstopdf}
+\usepackage[round, authoryear]{natbib}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{float}
+\usepackage{longtable}
+\usepackage[vscale=0.75,hscale=0.75]{geometry}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{dcolumn}
+\usepackage{blindtext}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{subcaption} 
+\newtheorem{theorem}{Theorem}
+\newtheorem{algorithm}{Algorithm}
+\newtheorem{conclusion}{Conclusion}
+\newtheorem{condition}{Condition}
+\newtheorem{conjecture}{Conjecture}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{exercise}{Exercise}
+\newtheorem{lemma}{Lemma}
+\newtheorem{notation}{Notation}
+\newtheorem{property}{Property}
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+\newtheorem{solution}{Solution}
+\newtheorem{summary}{Summary}
+\newtheorem{axiom}{Axiom}
+\usepackage{setspace}
+\newenvironment{proof}[1][Proof]{\textbf{#1.} }{\ \rule{0.25em}{0.25em}}
+\addtolength{\hoffset}{-0.10in} \addtolength{\textwidth}{0.5in} \addtolength{\voffset}{-0.10in}
+\addtolength{\textheight}{0.5in}
+\usepackage{hyperref}
+\linespread{1.5}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PARAMETERS OF THE EXPERIMENT - Ne pas oublier les espaces après les valeurs%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\periods}{19 }
+\newcommand{\convertECU}{1 }
+\newcommand{\mpcr}{0.7 }
+\newcommand{\dotationLow}{LowDotation }
+\newcommand{\dotationHigh}{HighDotation }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CONTENT OF THE INSTRUCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\title{Instructions \textcolor{red}{original version in French}}
+\maketitle
+
+ \section{Color coding for treatments}
+ \begin{itemize}
+     \item \textcolor{black}{\textit{Black:}} Common instructions for all treatments.
+     
+     \item \textcolor{teal}{\textit{Teal:}} Common instructions for MAM treatments.
+     \item \textcolor{blue}{\textit{Blue:}} Instructions only for the high inequality treatment.
+     \item \textcolor{orange}{\textit{Orange:}} Instructions only for the low inequality treatment.
+     \item \textcolor{red}{\textit{Red:}} Instructions that change depending on the role.
+ \end{itemize}
+ \newpage
+
+ \section{Instructions}
+
+\subsection*{Bienvenue}
+
+\noindent Nous vous remercions d’avoir accepté de participer à cette expérience sur l’étude de la prise de décision. Cette expérience sera rémunérée et vos gains dépendront de vos décisions ainsi que de celles prises par d’autres participants lors de l’expérience. Votre identité ainsi que vos décisions seront traitées de façon anonyme. Vous indiquerez vos choix à l'ordinateur devant lequel vous êtes assis(e) et celui-ci vous communiquera vos gains (en points) réalisés au fur et à mesure du déroulement de l'expérience. \\
+
+\noindent A partir de maintenant et jusqu'à la fin de l’expérience, nous vous prions de ne plus communiquer. Si vous avez des questions, levez la main et un moniteur viendra vous répondre en privé.
+
+\subsection*{Déroulement général}
+
+\noindent Les instructions suivantes seront disponibles à tout moment durant l'expérience en cliquant sur le bouton "Instructions".\\
+
+\noindent Au début de chaque période de jeu vous serez affecté aléatoirement à un autre joueur. Durant la durée de l'expérience, si vous êtes 20 dans la salle, vous ne rencontrerez qu'une seule fois chaque joueur, dans le cas contraire, vous jouerez deux fois contre certains joueurs. Chaque période se déroule donc avec un partenaire différent.\\
+
+\noindent Au début du jeu, vous vous verrez également attribuer une dotation de manière aléatoire, elle peut être égale soit à \textcolor{blue}{10} \textcolor{orange}{18} jetons, soit à \textcolor{blue}{30} \textcolor{orange}{22} jetons. Si vous disposez de \textcolor{blue}{10} \textcolor{orange}{18} jetons, alors vos partenaires disposeront de \textcolor{blue}{30} \textcolor{orange}{22} jetons. A l'inverse, si vous disposez de \textcolor{blue}{30} \textcolor{orange}{22} jetons, vos partenaires disposeront de \textcolor{blue}{10} \textcolor{orange}{18} jetons.\\
+
+\noindent L’expérience est divisée en \periods périodes. A la fin de l’expérience une des \periods périodes sera tirée au sort et vos gains (en points) pour cette période seront convertis en Euros selon une règle qui sera précisée à la fin des instructions.\\  
+
+\noindent Après lecture des instructions, vous serez invité à répondre à un questionnaire destiné à vérifier votre bonne compréhension de l’expérience. Lorsque tous les participants auront fini de remplir ce questionnaire, l’expérience débutera.\\
+
+\noindent La suite des instructions est destinée à vous faire comprendre le déroulement de chaque période de l'expérience.}
+
+
+\subsection*{Les types d'investissement}
+
+\noindent A chaque période, vous et votre partenaire de la période en cours disposerez d’une dotation de \textcolor{blue}{10} \textcolor{orange}{18} ou de \textcolor{blue}{30} \textcolor{orange}{22} jetons que chacun de vous devra répartir entre deux activités : l’activité A et l’activité B. L’activité A est commune aux deux joueurs. L’activité B est spécifique à chaque joueur. Chaque jeton devra être investi soit dans l’activité A soit dans l’activité B. Les gains associés à vos investissements dans chacune de ces deux activités et le gain total sont décrits ci-dessous. 
+
+\subsubsection*{Gain de l’investissement dans l’activité A}
+
+\noindent  Votre gain de l’activité A dépend de votre investissement dans cette activité et de l’investissement de l'autre joueur de votre groupe. Chaque jeton investi dans l'activité A vous rapporte \mpcr points et \mpcr points à votre partenaire. Ceci est expliqué plus en détail ci-dessous, dans le paragraphe "Gain total". \\
+
+\noindent \textit{\textbf {Exemple 1} :
+Vous investissez 10 jetons dans l’activité A. L'autre joueur investit 9 jetons. Votre gain de l’activité A est égal à (10 + 9) * 0.7 = 13.3 points.}\\
+
+\subsubsection*{Gain de l’investissement dans l’activité B}
+
+\noindent Votre gain de l'activité B ne dépend que de votre propre investissement dans cette activité. Chaque jeton investi dans l’activité B vous rapporte \convertECU points. De même, chaque jeton investi par un autre joueur de votre groupe dans son activité B lui rapporte \convertECU points. \\
+
+\noindent \textit{\textbf {Exemple 1} :
+Vous investissez 5 jetons dans l’activité B. Votre gain de l’activité B est égal à 5 points.}\\
+
+\subsubsection*{Gain total}
+
+\noindent  Votre gain total à chaque période est égal à votre gain de l’activité A + votre gain de l’activité B.\\
+
+\noindent Vous n'avez aucun calcul à faire. Votre gain total est directement reporté dans le tableau de gain (voir à la suite \textit{Tableau de Gains}). Ce tableau sera disponible à tout moment de l'expérience en cliquant sur le bouton "Instructions". La première colonne correspond à votre investissement dans l’activité A (compris entre 0 et \textcolor{blue}{10} \textcolor{orange}{18} ou \textcolor{blue}{30} \textcolor{orange}{22}). Les autres colonnes correspondent à la somme des investissements possibles de l'autre joueur de votre groupe dans l’activité A (comprise entre 0 et \textcolor{blue}{10} \textcolor{orange}{18} ou \textcolor{blue}{30} \textcolor{orange}{22}). \\
+
+\noindent Vos gains ainsi que ceux de l'autre joueur sont mesurés en points. Dans chacune des cellules du tableau figure votre propre gain total en points et celle de l'autre joueur. Ces valeurs s’appliquent également aux autres joueurs de votre groupe. \\
+
+\subsection*{Déroulement de l'expérience}
+
+\textcolor{teal}{\noindent A chaque période vous devrez prendre deux décisions. La décision d'investissement à la première étape. La décision d'approbation à la seconde étape. }
+
+\subsubsection*{\textcolor{teal}{Première étape}}
+
+\noindent A \textcolor{teal}{la première étape de} chaque période, vous devrez répartir vos \textcolor{red}{\dotationLow ou \dotationHigh} jetons entre votre investissement dans l’activité A et votre investissement dans l’activité B. Vous êtes libre quant au choix de cette répartition et vous pouvez par exemple décider de placer la totalité de vos jetons dans votre investissement dans l’activité A ou placer l’ensemble de vos jetons dans l’investissement dans l’activité B.\\
+
+\noindent Concrètement, l’ordinateur vous demandera d’indiquer le nombre de jetons que vous décidez d’investir dans l’activité A. Le reste de vos \textcolor{red}{\dotationLow ou \dotationHigh} jetons sera automatiquement investi dans l’activité B. La somme de ces deux investissements correspond exactement à votre dotation en jetons de la période. En conséquence, vous n’avez pas la possibilité de reporter une partie ou la totalité de votre dotation d’une période à l’autre. A chaque nouvelle période, vous disposez de nouveau de \textcolor{red}{\dotationLow ou \dotationHigh} jetons à investir. \\
+
+\noindent Vous et le joueur avec lequel vous serez assigné(e) à cette période, prendrez vos décisions d’investissement simultanément. \textcolor{teal}{Dès que les décisions d’investissement auront été prises, vous passerez à la seconde étape de la période.}
+
+\subsubsection*{\textcolor{teal}{Seconde étape}}
+
+\textcolor{teal}{\noindent A la seconde étape de chaque période, vos décisions d'investissement et celles de votre partenaire de la période seront rendues publiques, c'est-à-dire que vous serez tous les deux informés des choix de votre partenaire. Ces choix seront alors soumis à l'approbation de chacun. Si vous approuvez tous les deux ces décisions d'investissement, alors celles-ci s'appliqueront et chacun réalisera les gains correspondants.}\\
+
+\textcolor{teal}{\noindent En cas de désapprobation d'au moins un de vous deux, un niveau d'investissement identique vous sera appliqué à vous et à votre partenaire. Ce montant d'investissement correspondra au plus petit des deux montants proposés dans l'activité A (Exemple 2 ci-dessous)}\\
+
+\textcolor{teal}{\noindent A la fin de la seconde étape de la période, l’ordinateur calculera votre gain total ainsi que le gain de l'autre joueur sur la base de l'investissement final, pour la période en cours. Il vous communiquera le nombre de jetons que vous avez investi dans chacune des deux activités et vos gains totaux en points. Les mêmes informations concernant l'autre joueur seront également affichées sur votre écran. La période suivante pourra alors démarrer, vous serez assigné(e) à un nouveau joueur. Lorsque la \periodsème période sera achevée, l’ordinateur récapitulera le montant de vos gains pour chacune des \periods périodes.}\\
+
+
+
+
+
+\subsection*{Rémunération}
+
+ \noindent Le taux de change est de 1 euro pour \convertECU points. L'une des \periods périodes sera choisie au hasard pour être payée en monnaie réelle.
+
+\end{document}

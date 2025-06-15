@@ -1,0 +1,83 @@
+{{ block title }}
+Partie 3 - Jeu 3
+{{ endblock }}
+
+{{ block content }}
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Dans ce jeu, chaque joueur de la paire doit décider d'une répartition entre lui et l'autre joueur de la
+            paire.
+        </p>
+        <p>
+            Si ce jeu est sélectionné pour être rémunéré, le programme informatique va tirer au sort le joueur de la
+            paire dont la décision va s'appliquer. Si c'est vous alors votre répartition va s'appliquer à la paire.
+            Si c'est l'autre joueur de la paire, sa décision va s'appliquer à la paire.
+        </p>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-4"></div>
+    <div class="col-4">
+        <table class="table text-center">
+            <thead>
+            <tr>
+                <th>Votre choix de répartition <br>
+                    (Pour vous, Pour l'autre) <br>
+                    en ECUs
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            {{ for rep in C.MDG_OPTIONS }}
+            <tr>
+                <td onclick="set_decision({{forloop.counter0}})">{{ rep }}</td>
+            </tr>
+            {{ endfor }}
+            </tbody>
+        </table>
+    </div>
+    <div class="col-4"></div>
+</div>
+
+
+{{ next_button }}
+
+<input type="hidden" name="MDG_option" id="MDG_option" value="">
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    const btn_next = document.querySelector(".otree-btn-next");
+    const tdec = document.querySelector("table tbody");
+
+    function set_decision(selected_cell) {
+        document.querySelector("input[name=MDG_option]").value = selected_cell;
+        let cpt = 0;
+        for (let r of tdec.rows) {
+            if (cpt === selected_cell)
+                r.classList.add("bg-info");
+            else
+                r.classList.remove("bg-info");
+            cpt++;
+        }
+        btn_next.disabled = false;
+    }
+
+    function fill_auto() {
+        set_decision(Math.floor(Math.random() * tdec.rows.length));
+        setTimeout(() => {
+            btn_next.click()
+        }, 3000);
+    }
+
+    window.onload = function () {
+        btn_next.disabled = true;
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

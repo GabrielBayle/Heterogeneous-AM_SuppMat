@@ -1,0 +1,152 @@
+{{ block title }}
+Partie 3 - Jeu 2
+{{ endblock }}
+
+{{ block content }}
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Dans ce jeu, chaque joueur de la paire va prendre deux décisions, une dans le rôle de décideur et une
+            dans le rôle de receveur. Chacun va prendre ces deux décisions sans connaître les décisions prises par
+            l'autre joueur de la paire.
+        </p>
+        <p>
+            Dans le rôle de décideur, vous devez proposer une répartition de 20 ECUs entre vous l'autre joueur de
+            votre paire. Dans le rôle de receveur, vous devez indiquer à partir de quelle répartition vous acceptez la
+            proposition de l'autre joueur de la paire. Toute répartition qui vous octroie un gain supérieur ou égal à cette
+            répartition est considérée comme automatiquement acceptée. Par exemple, si vous déclarez accepter à
+            partir de la répartion 6 ECUs pour vous et 14 ECUs pour l'autre alors toute répartition qui vous octroie
+            6 ECUs ou plus est considérée comme automatiquement acceptée.
+        </p>
+        <p>
+            Si ce jeu est sélectionné pour être rémunéré, le programme informatique va tirer au sort le
+            joueur de la paire qui a le rôle de décideur et celui qui a le rôle de receveur.
+        </p>
+        <ul>
+            <li class="mb-2">
+                Si la proposition du décideur octroie au receveur un montant supérieur ou égal au minimum qu'il a
+                déclaré accepter alors la proposition du décideur est acceptée et la répartition est appliquée.
+            </li>
+            <li>
+                Si la proposition du décideur octroie au receveur un montant inférieur au minimum
+                qu'il a déclaré être prêt à accepter alors la proposition est rejetée et chacun des deux joueurs de la
+                paire a 0 ECU pour ce jeu.
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-6 text-center">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h4>En tant que décideur</h4>
+            </div>
+
+            <div class="card-body">
+                <table class="table text-center" id="tb_decideur">
+                    <thead>
+                    <tr>
+                        <th>Vous proposez <br>
+                            (Pour vous, Pour l'autre)
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {{ for rep in C.MUG_OPTIONS }}
+                    <tr>
+                        <td onclick="set_decideur({{forloop.counter0}})">{{ rep }}</td>
+                    </tr>
+                    {{ endfor }}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 text-center">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h4>En tant que receveur</h4>
+            </div>
+            <div class="card-body">
+                <table class="table text-center" id="tb_receveur">
+                    <thead>
+                    <tr>
+                        <th>Vous acceptez à partir de <br>
+                            (Pour vous, Pour l'autre)
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {{ for autre, vous in C.MUG_OPTIONS }}
+                    <tr>
+                        <td onclick="set_receveur({{forloop.counter0}})">({{ vous }}, {{ autre }})</td>
+                    </tr>
+                    {{ endfor }}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ next_button }}
+
+<input type="hidden" name="MUG_decideur_option" id="MUG_decideur_option" value="">
+<input type="hidden" name="MUG_receveur_option" id="MUG_receveur_option" value="">
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    const btn_next = document.querySelector(".otree-btn-next");
+    let decisions = {"decideur": false, "receveur": false};
+    const tdec = document.querySelector("#tb_decideur tbody");
+    const trec = document.querySelector("#tb_receveur tbody");
+
+    function set_decideur(selected_cell) {
+        document.querySelector("input[name=MUG_decideur_option]").value = selected_cell;
+        let cpt = 0;
+        for (let r of tdec.rows) {
+            if (cpt === selected_cell)
+                r.classList.add("bg-info");
+            else
+                r.classList.remove("bg-info");
+            cpt++;
+        }
+        decisions["decideur"] = true;
+        if (decisions["receveur"] === true)
+            btn_next.disabled = false;
+    }
+
+    function set_receveur(selected_cell) {
+        document.querySelector("input[name=MUG_receveur_option]").value = selected_cell;
+        let cpt = 0;
+        for (let r of trec.rows) {
+            if (cpt >= selected_cell)
+                r.classList.add("bg-info");
+            else
+                r.classList.remove("bg-info");
+            cpt++;
+        }
+        decisions["receveur"] = true;
+        if (decisions["decideur"] === true)
+            btn_next.disabled = false;
+    }
+
+    function fill_auto() {
+        set_decideur(Math.floor(Math.random() * tdec.rows.length));
+        set_receveur(Math.floor(Math.random() * trec.rows.length));
+        setTimeout(() => {
+            btn_next.click()
+        }, 3000);
+    }
+
+    window.onload = function () {
+        btn_next.disabled = true;
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

@@ -1,0 +1,22 @@
+{{ block title }}
+    Instructions
+{{ endblock }}
+
+{{ block content }}
+
+    <p class="text-info mb-2">Veuillez patienter, nous attendons que tous les participants aient lu les instructions.</p>
+
+    {{ include "approbation_publicgoods/InstructionsTemplate.html" }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script src="{{static 'chrono_warning.js' }}"></script>
+<script>
+    window.onload = function (){
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

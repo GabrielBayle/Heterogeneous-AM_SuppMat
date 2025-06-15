@@ -1,0 +1,29 @@
+{{ block title }}
+    Fin de l'expérience
+{{ endblock }}
+
+{{ block content }}
+
+{{ include "approbation_final/FinalTemplate.html" }}
+
+<div class="mb-3">
+    <label for="id_comments">Vous pouvez écrire des commentaires sur l'expérience dans la zone ci-dessous, puis
+    cliquer sur "Enregistrer" ensuite</label>
+    <textarea rows="7" style="width: 100%" name="comments" id="id_comments"></textarea>
+</div>
+
+<button class="btn btn-primary">Enregistrer</button>
+
+{{ endblock }}
+
+{{ block scripts}}
+<script src="{{ static 'fill_auto.js'}} "></script>
+<script>
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}
+
+

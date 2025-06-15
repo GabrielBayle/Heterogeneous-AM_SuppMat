@@ -1,0 +1,92 @@
+{{ block title }}
+Période {{ subsession.round_number }} sur {{ C.NUM_ROUNDS }} - Approbation / Désapprobation
+{{ endblock }}
+
+{{ block content }}
+
+<div class="row mb-3">
+    <div class="col-6">
+        <p class="text-info">
+            Temps écoulé : <span id="decision_time"></span><br>
+            <span id="decision_time_end" class="text-danger"
+                  style="visibility: hidden">Merci de prendre votre décision</span>
+        </p>
+    </div>
+    <div class="col-6">
+        <div class="text-end">
+            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modal_content">
+                Instructions
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Vous êtes le joueur {{ player.id_in_group }} dans la paire. Vous disposez d'une dotation de
+            {{ player.dotation }} jetons. L'autre joueur de la paire dispose d'une dotation de {{ other_dotation }}
+            jetons.
+        </p>
+        <p>
+            Vous avez investi {{ player.activite_A }} jetons dans l'activité A, et l'autre joueur de votre paire a investi
+            {{ other_dec }} jetons dans cette activité. Au total votre paire a donc investi {{ group.total_activite_A }}
+            jetons dans l'activité A, ce qui fait un gain pour chacun issu de cette activité de
+            {{ gain_act_A|to2 }} ECUs.
+            Ainsi, votre gain est de <span class="fw-bold">{{ pl_payoff|to2 }} ECUs</span> et celui de l'autre joueur
+            est de {{ ot_payoff|to2 }} ECUs.
+        </p>
+        <p>
+            Chacun des deux joueurs de la paire doit décider s'il approuve ou désapprouve ces investissements respectifs. Si
+            les
+            deux joueurs de la paire approuvent, les investissements de chacun sont appliqués. Si au moins un joueur
+            désapprouve,
+            c'est l'investissement le moins élevé qui
+            est appliqué aux deux joueurs de la paire : {{ min_A }} jetons. Dans ce cas l'investissement total de la paire
+            dans l'activité A est de {{ total_min_A }} jetons, soit un gain issu de cette activité de
+            {{ gain_min_A|to2 }} ECUs
+            chacun. Ainsi votre gain est de <span class="fw-bold">{{ pl_payoff_min_A|to2 }} ECUs</span> et celui de
+            l'autre joueur est de {{ ot_payoff_min_A|to2 }} ECUs.
+        </p>
+    </div>
+</div>
+
+<p class="text-center">Approuvez-vous ou désapprouvez-vous les investissements de votre paire dans l'activité A ?</p>
+<div class="row mb-3">
+    <div class="col-6 text-end">
+        <button class="btn btn-secondary" name="approbation" id="approb_true" value="1">J'approuve
+        </button>
+    </div>
+    <div class="col-6 text-start">
+        <button class="btn btn-secondary" name="approbation" id="approb_false" value="0">Je désapprouve
+        </button>
+    </div>
+</div>
+
+<script src="{{static 'chrono_warning.js' }}"></script>
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'chrono_warning.js' }}"></script>
+<script>
+    function fill_auto() {
+        const btns = document.querySelectorAll("button[name=approbation]");
+        setTimeout(() => {
+            if (Math.random() >= 0.5)
+                btns[0].click();
+            else
+                btns[1].click();
+        }, 3000);
+    }
+
+    window.onload = function () {
+        start_chrono(
+            document.querySelector("#decision_time"), document.querySelector("#decision_time_end"),
+            js_vars.DECISION_TIME
+        )
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

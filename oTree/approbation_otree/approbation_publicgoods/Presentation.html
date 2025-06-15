@@ -1,0 +1,31 @@
+{{ block title }}
+    Présentation de l'expérience
+{{ endblock }}
+
+{{ block content }}
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Cette expérience comporte 3 parties.
+        </p>
+        <p>
+            Votre gain pour l'expérience sera égal à votre gain à la partie 1, auquel s'ajoutera votre gain à une
+            des parties, 2 ou 3, sélectionnée aléatoirement par le programme informatique.
+        </p>
+    </div>
+</div>
+
+    {{ next_button }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{ static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function() {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

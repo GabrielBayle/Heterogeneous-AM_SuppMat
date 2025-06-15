@@ -1,0 +1,190 @@
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Cette partie comporte {{ C.NUM_ROUNDS }} périodes. Au début de chaque période le programme informatique
+            formera de nouvelles paires de joueurs. Vous ne pouvez pas identifier le joueur avec lequel vous êtes
+            en interaction et ce dernier ne peut pas vous identifier.
+        </p>
+        <p>
+            {{ if subsession.treatment == C.EQUAL }}
+            Au début de chaque période, les deux joueurs de la paire ont une dotation de {{ C.EQUAL_ENDOW.0 }}
+            jetons.
+
+            {{ elif subsession.treatment == C.LOW }}
+            Au début de chaque période, le joueur 1 de la paire a une dotation de {{ C.LOW_ENDOW.0 }} jetons et le
+            joueur 2 une dotation de {{ C.LOW_ENDOW.1 }} jetons. Vous serez pour toutes les périodes soit joueur 1,
+            soit joueur 2.
+
+            {{ elif subsession.treatment == C.HIGH }}
+            Au début de chaque période, le joueur 1 de la paire a une dotation de {{ C.HIGH_ENDOW.0 }} jetons et le
+            joueur 2 une dotation de {{ C.HIGH_ENDOW.1 }} jetons. Vous serez pour toutes les périodes soit joueur 1,
+            soit joueur 2.
+            {{ endif }}
+
+            Chaque joueur de la paire doit décider comment il répartit sa dotation entre deux activités, A et B.
+            L’activité A est commune aux deux joueurs de la paire. L’activité B est individuelle.
+            Les gains sont exprimés en ECUs, ils seront convertis en euros selon le taux conversion
+            1 ECU = {{ subsession.conversion_rate }} €.
+        </p>
+
+        <h6>Activité A</h6>
+        <p>
+            Le gain issu de l'activité A dépend de l'investissement des deux joueurs dans cette activité. Plus
+            précisément, le gain de chacun des deux joueurs de la paire est égal au montant total investi par la
+            paire dans cette activité multiplé par {{ C.ACTIV_A_PAY }} ECUs. Ainsi, si au total votre paire investit
+            10 jetons dans l'activité A le gain de chacun des deux joueurs est de
+            <script>document.write(`${10 * js_vars.ACTIV_A_PAY}`)</script>
+            ECUs.
+        </p>
+
+        <h6>Activité B</h6>
+        <p>
+            Le gain issu de l'activité B dépend uniquement de l'investissement individuel dans cette activité. Chaque
+            jeton investi dans cette activité rapporte {{ C.ACTIV_B_PAY }} ECU.
+            Ainsi, si vous investissez 5 jetons
+            dans l'activité B, votre gain issu de cette activité sera de
+            <script>document.write(String(5 * js_vars.ACTIV_B_PAY))</script>
+            ECUs.
+        </p>
+
+        <h6>Gain de la période</h6>
+        <p>
+            Votre gain pour la période est égal à la somme de votre gain issu de l'activité
+            A et de votre gain issu de l'activité B.
+            Vous n’avez pas de calcul à faire. Le tableau ci-dessous, qui sera accessible depuis l'écran de
+            décision, affiche le gain de chacun des deux joueurs en fonction de l'investissement respectif dans
+            l'activité A. De plus, sur l'écran de décision vous pourrez simuler l'investissement dans l'activité A
+            de l'autre joueur de votre paire et ainsi les gains respectifs en fonction de votre investissement et de
+            votre simulation du sien.
+        </p>
+
+        <p>
+            Illustrons le principe de lecture du tableau à l’aide d’un exemple.
+        </p>
+        <p>
+            <u>Exemple</u> :
+            Le joueur 1 investit 8 jetons dans l’activité A et donc
+            <script>document.write(`${js_vars.dotations[0] - 8}`)</script>
+            jetons dans l’activité B. Le joueur 2
+            investit 10 jetons dans l’activité A et donc
+            <script>document.write(`${js_vars.dotations[1] - 10}`)</script>
+            jetons dans l'activité B.
+            Au total la paire a donc investi 18 jetons dans l'activité A. Le gain de chacun des deux joueurs issu de
+            cette activité est alors de
+            <script>document.write((18 * js_vars.ACTIV_A_PAY).toFixed(2))</script>
+            ECUs. Le gain total du joueur 1
+            est égal à
+            <script>document.write(
+                `${(18 * js_vars.ACTIV_A_PAY).toFixed(2)} ECUs + ${(js_vars.dotations[0] - 8) * js_vars.ACTIV_B_PAY} ECUs soit
+                ${(18 * js_vars.ACTIV_A_PAY + (js_vars.dotations[0] - 8) * js_vars.ACTIV_B_PAY).toFixed(2)} ECUs`)
+            </script>
+            et le gain total du joueur 2 est égal à
+            <script>document.write(
+                `${(18 * js_vars.ACTIV_A_PAY).toFixed(2)} ECUs + ${(js_vars.dotations[1] - 10) * js_vars.ACTIV_B_PAY} ECUs soit
+                ${(18 * js_vars.ACTIV_A_PAY + (js_vars.dotations[1] - 10) * js_vars.ACTIV_B_PAY).toFixed(2)} ECUs`)
+            </script>
+        </p>
+
+        <figure class="mt-3">
+            <figcaption class="text-center fw-bold">Tableau de gains</figcaption>
+            <table class="table-sm table-bordered text-center mb-3 mx-auto" id="table_gains" style="font-size: 0.7rem;">
+                <thead></thead>
+                <tbody style="font-size: 0.9em;"></tbody>
+            </table>
+        </figure>
+
+        {{ if subsession.approbation }}
+        <h6>Approbation des investissements au sein de la paire</h6>
+        <p>
+            Après que les deux joueurs de la paire aient pris leur décision, un écran affichera les investissements
+            respectifs dans l'activité A. Chacun devra alors appouver ou désapprouver ces investissements. Si les deux
+            joueurs
+            de la paire approuvent, les investissements respectifs sont appliqués. Si au moins un des
+            deux désapprouve alors l'investissement appliqué dans l'activité A pour chacun des deux joueurs de la paire sera
+            le plus petit investissement des deux.
+        </p>
+        <p>
+            <u>Exemple</u> :
+            Si à la suite des investissements de l'exemple précédent (8 jetons pour le joueur 1 et 10 pour le joueur 2 dans
+            l'activité A), chacun des deux joueurs de la paire approuve, alors ces investissements sont appliqués. Si au moins
+            un des deux joueurs désapprouve, alors l'investissement de chacun des deux joueurs dans l'activité A sera 8
+            jetons. Ainsi, le total investi par la paire sera de 16 jetons, et le gain de chacun issu de l'activité A sera
+            <script>document.write(`${(16 * js_vars.ACTIV_A_PAY).toFixed(2)} ECUs.`)</script>
+            Le gain total du joueur 1
+            sera égal à
+            <script>document.write(
+                `${(16 * js_vars.ACTIV_A_PAY).toFixed(2)} ECUs + ${(js_vars.dotations[0] - 8) * js_vars.ACTIV_B_PAY} ECUs soit
+                ${(16 * js_vars.ACTIV_A_PAY + (js_vars.dotations[0] - 8) * js_vars.ACTIV_B_PAY).toFixed(2)} ECUs`)
+            </script>
+            et le gain total du joueur 2 sera égal à
+            <script>document.write(
+                `${(16 * js_vars.ACTIV_A_PAY).toFixed(2)} ECUs + ${(js_vars.dotations[1] - 8) * js_vars.ACTIV_B_PAY} ECUs soit
+                ${(16 * js_vars.ACTIV_A_PAY + (js_vars.dotations[1] - 8) * js_vars.ACTIV_B_PAY).toFixed(2)} ECUs`)
+            </script>
+        </p>
+        {{ endif }}
+
+        <h6>Gain de la partie</h6>
+        <p>
+            A la fin de la partie, le programme informatique sélectionnera au hasard une des {{ C.NUM_ROUNDS }}
+            périodes, et votre gain à cette période constituera votre gain pour la partie.
+        </p>
+    </div>
+</div>
+
+<script>
+    function createCell(tag, content) {
+        const cell = document.createElement(tag);
+        cell.innerHTML = content;
+        return cell;
+    }
+
+    function write_table() {
+        const thead = document.querySelector("#table_gains thead");
+        const tbody = document.querySelector("#table_gains tbody");
+
+        const headerRow = document.createElement("tr");
+        const headerCellEmpty = createCell("th", "");
+        headerCellEmpty.setAttribute("colspan", 2);
+        headerCellEmpty.setAttribute("rowspan", 2);
+        headerRow.appendChild(headerCellEmpty);
+        const headerCell = createCell("th", "Joueur 2");
+        headerCell.setAttribute("colspan", js_vars.dotations[1] + 1);
+        headerRow.appendChild(headerCell);
+        thead.appendChild(headerRow);
+
+        const secondHeaderRow = document.createElement("tr");
+        thead.appendChild(secondHeaderRow);
+
+        for (let i = 0; i <= js_vars.dotations[0]; i++) {
+            const row = document.createElement("tr");
+
+            for (let j = 0; j <= js_vars.dotations[1]; j++) {
+                if (i === 0) {
+                    let player2_dec = createCell("th", String(j));
+                    secondHeaderRow.appendChild(player2_dec);
+                }
+                if (j === 0) {
+                    if (i === 0) {
+                        let playerCell = createCell("th", "Joueur 1");
+                        playerCell.classList.add("text-info");
+                        playerCell.style.writingMode = "vertical-rl"; // le texte est écrit de haut en bas
+                        playerCell.style.textOrientation = "upright"; // pour que les lettres soient tournées dans le bon sens
+                        playerCell.setAttribute("rowspan", js_vars.dotations[0] + 1)
+                        row.appendChild(playerCell);
+                    }
+                    const player1_dec = createCell("th", String(i));
+                    row.appendChild(player1_dec);
+                }
+                // remplacer i et j par les valeurs calculées
+                let A_pay = (i + j) * js_vars.ACTIV_A_PAY;
+                let p1_pay = ((js_vars.dotations[0] - i) * js_vars.ACTIV_B_PAY + A_pay).toFixed(2);
+                let p2_pay = ((js_vars.dotations[1] - j) * js_vars.ACTIV_B_PAY + A_pay).toFixed(2);
+                row.appendChild(createCell("td", `<span class='text-info'>${p1_pay}</span>, ${p2_pay}`));
+            }
+            tbody.appendChild(row);
+        }
+    }
+
+    write_table();
+</script>

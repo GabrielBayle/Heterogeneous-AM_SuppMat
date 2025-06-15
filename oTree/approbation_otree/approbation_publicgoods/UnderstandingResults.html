@@ -1,0 +1,53 @@
+{{ block title }}
+ Questionnaire de compréhension - Résultats
+{{ endblock }}
+
+{{ block content }}
+
+<div class="mb-3 text-end">
+    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modal_content">
+        Instructions
+    </button>
+</div>
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Vous avez fait {{ player.understanding_faults }} faute(s).
+        </p>
+    </div>
+</div>
+
+{{ for q in understanding }}
+<div class="card bg-light mb-3 ">
+    <div class="card-header {{ if q.reponse == q.solution }} bg-success {{ else }} bg-danger {{ endif }}">
+        <p><strong>Question {{ forloop.counter }}</strong></p>
+    </div>
+    <div class="card-body">
+        <p>
+            <u>Question</u> : {{ q.text }} <br>
+            <u>Votre réponse</u> : <span class="{{ if q.reponse == q.solution }} text-success {{ else }} text-danger {{ endif }}">{{ q.reponse }}</span> <br>
+            {{ if q.reponse != q.solution }}
+            <u>La solution</u> : <span class="text-success">{{ q.solution }}</span>  <br>
+            {{ endif }}
+            <u>Explication</u> : {{ q.explanation }}
+        </p>
+    </div>
+</div>
+{{ endfor }}
+
+{{ next_button }}
+
+{{ include "approbation_publicgoods/InstructionsModal.html" }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

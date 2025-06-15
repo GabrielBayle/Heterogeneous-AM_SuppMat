@@ -1,0 +1,171 @@
+{{ block title }}
+Période {{ subsession.round_number }} sur {{ C.NUM_ROUNDS }} - Décision
+{{ endblock }}
+
+{{ block style }}
+<style>
+    input[type=number] {
+        width: 100px
+    }
+</style>
+{{ endblock }}
+
+{{ block content }}
+
+<div class="row mb-3">
+    <div class="col-6">
+        <p class="text-info">
+            Temps écoulé : <span id="decision_time"></span><br>
+            <span id="decision_time_end" class="text-danger"
+                  style="visibility: hidden">Merci de prendre votre décision</span>
+        </p>
+    </div>
+    <div class="col-6">
+        <div class="text-end">
+            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modal_content">
+                Instructions
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            <strong>Vous êtes le joueur {{ player.id_in_group }} dans la paire</strong>. Vous disposez d'une dotation de
+            {{ player.dotation }} jetons. L'autre joueur de la paire dispose d'une dotation de {{ other_dotation }}
+            jetons.
+        </p>
+        <p>
+            Vous décidez de votre investissement dans l'activité A en déplaçant le curseur de la zone de gauche
+            "Votre investissement dans l'activité A". Vous pouvez simuler l'investissement de l'autre joueur dans
+            l'activité A dans la zone de droite "Investissement de l'autre joueur dans l'activité A". Dès que vous
+            déplacez les curseurs les investissements dans l'activité B sont automatiquement calculés, de même que
+            les gains respectifs dans l'encadré "Gains" sous les deux zones.
+        </p>
+        <p class="fst-italic">
+            Vous pouvez accéder au tableau des gains en cliquant sur le bouton "Instructions".
+        </p>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-6">
+        <div class="card bg-light">
+            <div class="card-header">
+                <h6>Votre investissement dans l'activité A : <output class="text-info" for="activite_A" id="out_pl_A">0</output></h6>
+            </div>
+            <div class="card-body">
+                <input type="range" name="activite_A" min="0" max="{{player.dotation}}" id="activite_A"
+                       style="width:{{pl_width}}%" value="0" list="tickmarks_pl"
+                       oninput="out_pl_A.value=this.value; set_payoffs(); enable_next()">
+            </div>
+            <div class="card-footer">
+                <p>Votre investissement dans l'activité B : <span id="out_pl_B">{{ player.dotation }}</span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6">
+        <div class="card bg-light">
+            <div class="card-header">
+                <h6>Investissement de l'autre joueur dans l'activité A :
+                    <output class="text-info" for="activite_A" id="out_ot_A">0</output>
+                </h6>
+            </div>
+            <div class="card-body">
+                <input type="range" name="activite_A_other" min="0" max="{{other_dotation}}" id="activite_A_other"
+                       style="width:{{ot_width}}%" value="0" list="tickmarks_ot"
+                       oninput="out_ot_A.value=this.value;set_payoffs()">
+            </div>
+            <div class="card-footer">
+                <p>Investissement de l'autre joueur dans l'activité B : <span id="out_ot_B">{{ other_dotation }}</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card bg-white">
+            <div class="card-header">
+                <h6>Gains</h6>
+            </div>
+            <div class="card-body">
+                <p>
+                    Votre paire investit au total <span id="total_paire"></span> jetons dans l'activité A, donc le gain issu
+                    de l'activité A pour chacun est <span id="gain_chacun"></span> ECUs. <br>
+                    Votre gain est <span id="gain_joueur"></span> ECUs et le gain de l'autre joueur est
+                    <span id="gain_other"></span> ECUs.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<datalist id="tickmarks_pl"></datalist>
+<datalist id="tickmarks_ot"></datalist>
+
+{{ next_button }}
+
+{{ include "approbation_publicgoods/InstructionsModal.html" }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script src="{{static 'chrono_warning.js' }}"></script>
+<script>
+    const btn_next = document.querySelector(".otree-btn-next");
+    const act_A = document.querySelector("input[name=activite_A]");
+    const act_A_other = document.querySelector("input[name=activite_A_other]");
+    const total_paire = document.querySelector("#total_paire");
+    const gain_chacun = document.querySelector("#gain_chacun");
+    const pl_gain = document.querySelector("#gain_joueur");
+    const ot_gain = document.querySelector("#gain_other");
+
+    window.onload = function () {
+        btn_next.disabled = true;
+        const tm_pl = document.querySelector("#tickmarks_pl");
+        for (let i = 0; i <= js_vars.pl_dotation; i++) {
+            let opt = document.createElement("option");
+            opt.value = String(i);
+            tm_pl.appendChild(opt);
+        }
+        const tm_ot = document.querySelector("#tickmarks_ot");
+        for (let i = 0; i <= js_vars.ot_dotation; i++) {
+            let opt = document.createElement("option");
+            opt.value = String(i);
+            tm_ot.appendChild(opt);
+        }
+        set_payoffs();
+
+        start_chrono(
+            document.querySelector("#decision_time"), document.querySelector("#decision_time_end"),
+            js_vars.DECISION_TIME
+        )
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+
+    function set_payoffs() {
+        const pl_A = parseInt(act_A.value);
+        const pl_B = js_vars.pl_dotation - pl_A;
+        const ot_A = parseInt(act_A_other.value);
+        const ot_B = js_vars.ot_dotation - ot_A;
+        const total = pl_A + ot_A;
+        const gain_chac = total * js_vars.ACTIV_A_PAY;
+
+        document.querySelector("#out_pl_B").innerHTML = String(pl_B);
+        document.querySelector("#out_ot_B").innerHTML = String(ot_B);
+        total_paire.innerHTML = String(total);
+        gain_chacun.innerHTML = gain_chac.toFixed(2);
+        pl_gain.innerHTML = Number(pl_B * js_vars.ACTIV_B_PAY + gain_chac).toFixed(2);
+        ot_gain.innerHTML = Number(ot_B * js_vars.ACTIV_B_PAY + gain_chac).toFixed(2);
+    }
+
+    function enable_next() {
+        btn_next.disabled = false;
+    }
+</script>
+{{ endblock }}

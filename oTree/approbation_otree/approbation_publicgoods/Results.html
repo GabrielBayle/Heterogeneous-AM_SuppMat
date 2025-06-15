@@ -1,0 +1,95 @@
+{{ block title }}
+Période {{ subsession.round_number }} sur {{ C.NUM_ROUNDS }} - Résultats
+{{ endblock }}
+
+{{ block content }}
+
+<div class="row mb-3">
+    <div class="col-6">
+        <p class="text-info">
+            Temps écoulé : <span id="decision_time"></span><br>
+            <span id="decision_time_end" class="text-danger"
+                  style="visibility: hidden">Merci de valider</span>
+        </p>
+    </div>
+    <div class="col-6">
+        <div class="text-end">
+            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modal_content">
+                Instructions
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Vous êtiez le joueur {{ player.id_in_group }} dans la paire. Vous disposiez d'une dotation de
+            {{ player.dotation }} jetons, et l'autre joueur d'une dotation de {{ other_dotation }} jetons.
+        </p>
+        <p>
+            Vous avez investi {{ player.activite_A }} jetons dans l'activité A, et l'autre joueur a investi {{ other_dec
+            }}
+            jetons dans cette activité. Au total votre groupe a donc investi {{ player.group.total_activite_A }} jetons
+            dans l'activité A. Le gain issu de l'activité A pour chacun des joueurs est {{ gain_A|to2 }} ECUs. Votre
+            gain issu de l'activité B est de {{ gain_B|to2 }} ECUs.
+        </p>
+        {{ if subsession.approbation }}
+        <p>
+            {{ if player.group.approbation == 2 }}
+            Vous et l'autre joueur de votre paire avez approuvé ces investissements, ils ont donc été appliqués.
+
+            {{ else }}
+
+            {{ if player.group.approbation == 0 }}
+            Vous et l'autre joueur de votre groupe avez désapprouvé ces investissements. L'investissement le plus faible
+            a
+            donc été appliqué aux deux joueurs. Ainsi, chacun a investi {{ player.activite_A_apres_approb }} jetons
+            dans l'activité A.
+
+            {{ else }}
+            {{ if not player.approbation }}
+            Vous avez désapprouvé ces investissements, l'autre joueur les a approuvé. L'investissement le plus faible a
+            donc été appliqué aux deux joueurs. Ainsi, chacun a investi {{ player.activite_A_apres_approb }} jetons
+            dans l'activité A.
+            {{ else }}
+            Vous avez approuvé ces investissements, l'autre joueur les a désapprouvé. L'investissement le plus faible a
+            donc été appliqué aux deux joueurs. Ainsi, chacun a investi {{ player.activite_A_apres_approb }} jetons
+            dans l'activité A.
+            {{ endif }}
+            {{ endif }}
+            Au total votre groupe a donc investi {{ player.group.total_activite_A_apres_approb }} jetons
+            dans l'activité A. Le gain issu de l'activité A pour chacun des joueurs est {{ gain_A_apres_approb|to2 }}
+            ECUs. Votre
+            gain issu de l'activité B est de {{ gain_B_apres_approb|to2 }} ECUs.
+            {{ endif }}
+        </p>
+        {{ endif }}
+        <p>
+            Votre gain pour la période est de {{ player.payoff_ecus|to2 }} ECUs, et le gain de l'autre joueur est
+            de {{ other_payoff|to2 }} ECUs.
+        </p>
+    </div>
+</div>
+
+{{ next_button }}
+
+{{ include "approbation_publicgoods/InstructionsModal.html" }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script src="{{static 'chrono_warning.js' }}"></script>
+<script>
+    window.onload = function () {
+        start_chrono(
+            document.querySelector("#decision_time"), document.querySelector("#decision_time_end"),
+            js_vars.DECISION_TIME
+        )
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}
+

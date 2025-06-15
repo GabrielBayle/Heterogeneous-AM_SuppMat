@@ -1,0 +1,55 @@
+{{ block title }}
+{{ lexicon.title }}
+{{ endblock }}
+
+{{ block content }}
+
+<div class="row mb-3">
+    <div class="col-4"></div>
+    <div class="col-4">
+        <figure>
+            <img src="{{ static 'LEEM.png' }}" alt="LEEM" class="img-thumbnail border-0">
+        </figure>
+    </div>
+    <div class="col-4"></div>
+
+</div>
+
+
+<div class="mt-4 mb-3 card bg-light text-justify">
+    <div class="card-body">
+        <p>
+            {{ lexicon.p1 }}
+        </p>
+    </div>
+</div>
+
+<div class="mb-3">
+    <input type="checkbox" name="consent" id="id_consent">
+    <label for="id_consent">{{ lexicon.btn_label }}</label>
+</div>
+
+<button class="btn btn-primary otree-btn-next">{{ lexicon.btn_next }}</button>
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    let btn_next = document.querySelector('.otree-btn-next');
+    btn_next.disabled = true;
+    forminputs.consent.addEventListener("click", () => {
+        btn_next.disabled = !forminputs.consent.checked;
+    })
+
+    function fill_auto() {
+        forminputs.consent.click();
+        btn_next.disabled = false;
+        setTimeout(() => btn_next.click(), 2000);
+    }
+
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

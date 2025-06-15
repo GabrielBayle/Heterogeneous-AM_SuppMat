@@ -1,0 +1,117 @@
+{{ block title }}
+Partie 3 - Jeu 1
+{{ endblock }}
+
+{{ block content }}
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            Dans ce jeu, chaque joueur de la paire doit indiquer pour chaque ligne du tableau ci-dessous, s'il
+            préfère l'option A ou l'option B, en sélectionnant la cellule correspondante.
+        </p>
+        <p>
+            Chaque option représente une répartition d'argent, en ECUs, entre vous et l'autre joueur de votre paire.
+            L'option A est toujours identique, {{ C.ETDG_OPTIONS.0.0.0 }} ECUs pour vous et {{ C.ETDG_OPTIONS.0.0.1 }}
+            ECU pour l'autre joueur de votre paire. L'option B est une répartition égalitaire, avec un gain croissant
+            à chaque ligne.
+        </p>
+        <p>
+            Si ce jeu est sélectionné pour être rémunéré, le programme informatique va procéder à deux tirages au sort
+            successifs. Le premier va déterminer la ligne qui va être considérée (entre 1 et {{ C.ETDG_OPTIONS|length }}).
+            Le second va déterminer le joueur de la paire dont la décision va s'appliquer à la paire. Si c'est vous,
+            alors c'est votre décision qui va s'appliquer à la paire. Ainsi par exemple, si c'est la ligne 7 qui est considérée
+            et que vous avez déclaré préférer l'option A alors votre gain sera de {{ C.ETDG_OPTIONS.6.0.0 }} ECUs et
+            celui de l'autre joueur de votre paire sera de {{ C.ETDG_OPTIONS.6.0.1 }} ECU. Si vous avez déclaré
+            préférer l'option B pour cette ligne alors votre gain et celui de l'autre joueur de la paire sera de
+            {{ C.ETDG_OPTIONS.6.1.0 }} ECUs. Si c'est la décision de l'autre joueur de la paire qui s'applique alors ce
+            sera sa préférence pour la ligne considérée qui s'appliquera et déterminera le gain de chacun.
+        </p>
+        <p>
+            Afin de vous assister dans vos décisions, si vous indiquez
+            que vous préférez l'option B à l'option A pour une certaine ligne, l'option B sera
+            automatiquement préférée à l'option A pour toutes les lignes suivantes (et si vous indiquez que vous
+            préférez l'option A à l'option B pour une certaine ligne, l'option A sera automatiquement préférée à
+            l'option B pour toutes les lignes précédentes).
+        </p>
+        <p class="text-info">
+            Veuillez prendre votre décision directement en cliquant sur les cellules du tableau.
+        </p>
+    </div>
+</div>
+
+<table class="table table-striped table-bordered text-center">
+    <thead>
+    <tr>
+        <th style="width:15px"></th>
+        <th>Option A <br>(Pour vous, Pour l'autre)</th>
+        <th>Option B<br>(Pour vous, Pour l'autre)</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ for option_A, option_B in C.ETDG_OPTIONS }}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td id="A_{{ forloop.counter }}" onclick="active_cell(this)">{{ option_A }}</td>
+        <td id="B_{{ forloop.counter }}" onclick="active_cell(this)">{{ option_B }}</td>
+    </tr>
+    {{ endfor }}
+    </tbody>
+</table>
+{{ next_button }}
+
+<input type="hidden" name="ETDG_switch" id="ETDG_switch" value="">
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    const btn_next = document.querySelector(".otree-btn-next");
+    btn_next.disabled = true;
+
+    function active_cell(clicked_cell) {
+        const nb_rows = document.querySelector("tbody").rows.length;
+        const clicked_cell_splitted = clicked_cell.id.split("_")
+        if (clicked_cell_splitted[0] === "A") {
+            for (let i = 1; i < Number(clicked_cell_splitted[1]) + 1; i++) {
+                document.querySelector(`#A_${i}`).classList.add("bg-info");
+                document.querySelector(`#B_${i}`).classList.remove("bg-info");
+            }
+        } else if (clicked_cell_splitted[0] === "B") {
+            for (let i = Number(clicked_cell_splitted[1]); i < nb_rows + 1; i++) {
+                document.querySelector(`#A_${i}`).classList.remove("bg-info");
+                document.querySelector(`#B_${i}`).classList.add("bg-info");
+            }
+        }
+
+        const selected_cells = document.querySelectorAll("td.bg-info");
+        if (selected_cells.length === nb_rows) {
+            let input_decision = document.querySelector("input[name=ETDG_switch]");
+            input_decision.value = 0;   // par défaut A partout
+            for (let cell of selected_cells) {
+                let sel_cell_split = cell.id.split("_");
+                if (sel_cell_split[0] === "B") {
+                    input_decision.value = sel_cell_split[1];
+                    break;
+                }
+            }
+            btn_next.disabled = false;
+        }
+    }
+
+    function fill_auto() {
+        const nb_rows = document.querySelector("tbody").rows.length;
+        const rand_idx = Math.floor(Math.random() * nb_rows) + 1;
+        document.querySelector(`#A_${rand_idx}`).click();
+        if (rand_idx < nb_rows)
+            document.querySelector(`#B_${rand_idx + 1}`).click();
+        setTimeout(() => {
+            btn_next.click();
+        }, 3000);
+    }
+
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}

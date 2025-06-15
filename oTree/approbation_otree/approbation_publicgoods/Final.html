@@ -1,0 +1,67 @@
+{{ block title }}
+    Fin de la partie 1
+{{ endblock }}
+
+{{ block content }}
+
+<div class="card bg-light mb-3">
+    <div class="card-body">
+        <p>
+            La partie 1 est terminée.
+        </p>
+        <p>
+            {{ player.participant.vars.approbation_publicgoods.txt_final }}
+        </p>
+    </div>
+</div>
+
+<table class="table table-sm table-striped mx-auto text-center mb-3">
+    <thead>
+    <tr>
+        <th>Période</th>
+        <th>Dotation</th>
+        <th>Activité A</th>
+        <th>Activité B</th>
+        <th>Total activité A</th>
+        {{ if subsession.approbation }}
+        <th>Approbation des 2 joueurs</th>
+        <th>Activité A</th>
+        <th>Activité B</th>
+        <th>Total activité A</th>
+         {{ endif }}
+        <th>Gain de la période</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ for p in player.in_all_rounds }}
+    <tr class="{{ if p.round_number == p.paid_round}}bg-info{{ endif }}">
+        <td>{{ p.round_number }}</td>
+        <td>{{ p.dotation }}</td>
+        <td>{{ p.activite_A }}</td>
+        <td>{{ p.activite_B }}</td>
+        <td>{{ p.group.total_activite_A }}</td>
+        {{ if subsession.approbation }}
+        <td>{{ if p.group.approbation == 2 }} oui {{ else }} non {{ endif }}</td>
+        <td>{{ p.activite_A_apres_approb }}</td>
+        <td>{{ p.activite_B_apres_approb }}</td>
+        <td>{{ p.group.total_activite_A_apres_approb }}</td>
+        {{ endif }}
+        <td>{{ p.payoff_ecus|to2 }} ECUs</td>
+    </tr>
+    {{ endfor }}
+    </tbody>
+</table>
+
+{{ next_button }}
+
+{{ endblock }}
+
+{{ block scripts }}
+<script src="{{static 'fill_auto.js' }}"></script>
+<script>
+    window.onload = function () {
+        if (js_vars.fill_auto)
+            fill_auto();
+    }
+</script>
+{{ endblock }}
